@@ -23,6 +23,9 @@ wheels/
 .installed.cfg
 *.egg
 
+# Don't ignore frontend/lib (it's needed for the app)
+!frontend/lib/
+
 # Environment variables
 .env
 .env.local

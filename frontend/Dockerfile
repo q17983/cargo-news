@@ -15,11 +15,13 @@ WORKDIR /app
 
 # Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
-# Copy all source files
+# Copy all source files - explicitly include lib directory
 COPY . .
+# Explicitly ensure lib directory is copied
+COPY lib ./lib
 
 # Verify files are copied correctly (debug)
-RUN ls -la /app/ && echo "---" && ls -la /app/lib/ && echo "---" && test -f /app/lib/api.ts && echo "✅ lib/api.ts found" || echo "❌ lib/api.ts NOT FOUND"
+RUN ls -la /app/ && echo "---" && ls -la /app/lib/ 2>&1 && echo "---" && test -f /app/lib/api.ts && echo "✅ lib/api.ts found" || echo "❌ lib/api.ts NOT FOUND"
 
 # Build Next.js
 RUN npm run build
