@@ -2,7 +2,7 @@
 
 import { format } from 'date-fns';
 import { useState, useEffect } from 'react';
-import { getScrapingStatus } from '@/lib/api';
+import { getScrapingStatus } from '../lib/api';
 
 interface Source {
   id: string;

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import ArticleList from '@/components/ArticleList';
-import TagFilter from '@/components/TagFilter';
-import { fetchArticles, fetchTags, fetchSources } from '@/lib/api';
+import ArticleList from '../components/ArticleList';
+import TagFilter from '../components/TagFilter';
+import { fetchArticles, fetchTags, fetchSources } from '../lib/api';
 
 export default function Home() {
   const [articles, setArticles] = useState<any[]>([]);
