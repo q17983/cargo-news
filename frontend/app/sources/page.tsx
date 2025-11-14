@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import SourceList from '@/components/SourceList';
-import AddSourceForm from '@/components/AddSourceForm';
-import { fetchSources, createSource, deleteSource, testSource, triggerScrape } from '../lib/api';
+import SourceList from '../../components/SourceList';
+import AddSourceForm from '../../components/AddSourceForm';
+import { fetchSources, createSource, deleteSource, testSource, triggerScrape } from '../../lib/api';
 
 export default function SourcesPage() {
   const [sources, setSources] = useState<any[]>([]);
