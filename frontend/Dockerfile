@@ -17,12 +17,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 # Copy all source files
 COPY . .
-# Explicitly copy lib directory (in case it's missing)
-RUN mkdir -p /app/lib && \
-    if [ -d lib ]; then cp -r lib/* /app/lib/; fi
 
-# Verify files are copied correctly (debug)
-RUN ls -la /app/ && echo "---" && ls -la /app/lib/ 2>&1 && echo "---" && test -f /app/lib/api.ts && echo "✅ lib/api.ts found" || echo "❌ lib/api.ts NOT FOUND"
+# Verify files are copied correctly
+RUN echo "=== Files in /app/ ===" && ls -la /app/ && \
+    echo "=== Checking lib/ ===" && \
+    (test -d /app/lib && echo "✅ lib/ directory exists" || echo "❌ lib/ NOT FOUND") && \
+    (test -f /app/lib/api.ts && echo "✅ lib/api.ts found" || echo "❌ lib/api.ts NOT FOUND") && \
+    echo "=== Searching for api.ts ===" && \
+    find /app -name "api.ts" 2>&1 | head -5
 
 # Build Next.js
 RUN npm run build
