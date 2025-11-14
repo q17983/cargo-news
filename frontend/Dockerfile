@@ -18,6 +18,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy all source files
 COPY . .
 
+# Verify files are copied correctly (debug)
+RUN ls -la /app/ && echo "---" && ls -la /app/lib/ && echo "---" && test -f /app/lib/api.ts && echo "✅ lib/api.ts found" || echo "❌ lib/api.ts NOT FOUND"
+
 # Build Next.js
 RUN npm run build
 
