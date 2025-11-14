@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
@@ -9,12 +11,21 @@ const nextConfig = {
       },
     ];
   },
-  // Ensure path aliases work correctly
-  webpack: (config) => {
+  // Ensure path aliases work correctly in Railway build
+  webpack: (config, { isServer }) => {
+    // Resolve @ alias to current directory (frontend/)
+    const aliasPath = path.resolve(__dirname);
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': require('path').resolve(__dirname),
+      '@': aliasPath,
     };
+    
+    // Also ensure modules resolve correctly
+    config.resolve.modules = [
+      path.resolve(__dirname, 'node_modules'),
+      'node_modules',
+    ];
+    
     return config;
   },
 };
