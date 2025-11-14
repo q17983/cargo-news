@@ -1,0 +1,408 @@
+"""API routes for manual scraping triggers."""
+import logging
+import asyncio
+import subprocess
+import sys
+import os
+from typing import List
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, TimeoutError as FutureTimeoutError
+from fastapi import APIRouter, HTTPException, BackgroundTasks, status
+from uuid import UUID
+from app.database.supabase_client import db
+from app.scraper.scraper_factory import ScraperFactory
+from app.ai.summarizer import Summarizer
+from app.database.models import ArticleCreate, ScrapingLogCreate
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+# Use ThreadPoolExecutor but with better handling for Playwright
+# Note: ProcessPoolExecutor won't work because database connections aren't picklable
+# Instead, we'll use ThreadPoolExecutor with proper error handling and timeouts
+SCRAPING_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="scraper")
+
+
+def _scrape_source_sync(source_id: UUID):
+    """
+    Synchronous scraping function that runs in background thread.
+    This handles all the blocking I/O operations (Playwright, requests, etc.)
+    """
+    source = db.get_source(source_id)
+    if not source:
+        logger.error(f"Source {source_id} not found")
+        return
+    
+    if not source.is_active:
+        logger.info(f"Source {source_id} is not active, skipping")
+        return
+    
+    scraper = None
+    articles_found = 0  # Total URLs found
+    articles_processed = 0  # Successfully saved (not duplicates)
+    articles_failed = 0
+    error_message = None
+    
+    try:
+        logger.info(f"Starting scrape for source: {source.name} ({source.url})")
+        
+        # Create scraper
+        scraper = ScraperFactory.create_scraper(
+            source.url,
+            delay_seconds=2,
+            max_retries=3
+        )
+        
+        # Get listing URL
+        listing_url = ScraperFactory.get_listing_url(source.url)
+        
+        # Check if this is first-time scraping (no articles exist for this source)
+        existing_articles = db.get_articles_by_source(source_id, limit=1)
+        is_first_scrape = len(existing_articles) == 0
+        
+        # Determine max pages based on whether this is first scrape
+        # IMPORTANT: Reduced first-time scrape to prevent quota issues
+        if is_first_scrape:
+            max_pages = 5  # Reduced to 5 pages to prevent quota exhaustion
+            check_duplicates = True  # Always check duplicates to avoid re-processing
+            logger.info(f"First-time scrape for {source.name}: will scrape up to {max_pages} pages (reduced to prevent quota issues)")
+        else:
+            max_pages = 3  # Daily: only scrape first few pages (10-15 articles per day)
+            check_duplicates = True  # Check duplicates and stop early
+            logger.info(f"Daily scrape for {source.name}: will scrape up to {max_pages} pages, stopping early on duplicates")
+        
+        # Get article URLs with smart duplicate checking
+        if hasattr(scraper, 'get_article_urls'):
+            # Pass duplicate check function if doing daily scrape
+            duplicate_check = db.article_exists if check_duplicates else None
+            article_urls = scraper.get_article_urls(
+                listing_url, 
+                max_pages=max_pages,
+                check_duplicates=check_duplicates,
+                duplicate_check_func=duplicate_check
+            )
+            articles_found = len(article_urls)  # Track total URLs found
+        else:
+            logger.warning(f"Scraper for {source.url} doesn't support get_article_urls")
+            article_urls = []
+        
+        logger.info(f"Found {articles_found} article URLs, processing {len(article_urls)} new articles")
+        
+        # Initialize summarizer
+        summarizer = Summarizer()
+        
+        # Process each article
+        for article_url in article_urls:
+            try:
+                # Check if article already exists (by URL first, before scraping)
+                if db.article_exists(article_url):
+                    logger.info(f"Article already exists (by URL): {article_url}")
+                    continue
+                
+                # Scrape article
+                article_data = scraper.scrape_article(article_url)
+                if not article_data:
+                    articles_failed += 1
+                    continue
+                
+                # Double-check by title after scraping (in case URL format changed)
+                article_title = article_data.get('title', '')
+                if db.article_exists(article_url, title=article_title):
+                    logger.info(f"Article already exists (by title): {article_title[:50]}...")
+                    continue
+                
+                # Generate summary (with quota error handling)
+                try:
+                    summary_data = summarizer.summarize(
+                        article_content=article_data.get('content', ''),
+                        article_url=article_url,
+                        article_title=article_data.get('title', ''),
+                        article_date=article_data.get('published_date'),
+                        source_name=source.name or "Air Cargo News"
+                    )
+                except Exception as summary_error:
+                    error_str = str(summary_error).lower()
+                    if 'quota' in error_str or '429' in error_str:
+                        logger.error(f"⚠️  QUOTA EXCEEDED - Stopping scraping to prevent further API calls")
+                        logger.error(f"Processed {articles_processed} articles before quota limit")
+                        error_message = f"Gemini API quota exceeded after processing {articles_processed} articles. Please wait or upgrade your API plan."
+                        # Log partial success
+                        log = ScrapingLogCreate(
+                            source_id=source_id,
+                            status='partial',
+                            error_message=error_message,
+                            articles_found=articles_found
+                        )
+                        db.create_scraping_log(log)
+                        return  # Stop processing to avoid more quota errors
+                    else:
+                        # Re-raise other errors
+                        raise
+                
+                # Create article record
+                article = ArticleCreate(
+                    source_id=source_id,
+                    title=summary_data.get('translated_title', article_data.get('title', '')),
+                    url=article_url,
+                    content=article_data.get('content'),
+                    summary=summary_data.get('summary', ''),
+                    tags=summary_data.get('tags', []),
+                    published_date=article_data.get('published_date')
+                )
+                
+                db.create_article(article)
+                articles_processed += 1
+                logger.info(f"Processed article {articles_processed}: {article_url}")
+                
+            except Exception as e:
+                logger.error(f"Error processing article {article_url}: {str(e)}")
+                articles_failed += 1
+                continue
+        
+        # Log success
+        status = 'success' if articles_failed == 0 else 'partial'
+        log = ScrapingLogCreate(
+            source_id=source_id,
+            status=status,
+            articles_found=articles_found  # Total URLs found (not just processed)
+        )
+        db.create_scraping_log(log)
+        
+        logger.info(f"Scraping completed for {source.name}: {articles_found} URLs found, {articles_processed} articles processed, {articles_failed} failed")
+        
+    except Exception as e:
+        logger.error(f"Error scraping source {source_id}: {str(e)}")
+        error_message = str(e)
+        
+        # Log failure
+        log = ScrapingLogCreate(
+            source_id=source_id,
+            status='failed',
+            error_message=error_message,
+            articles_found=articles_found  # Total URLs found (not just processed)
+        )
+        db.create_scraping_log(log)
+    
+    finally:
+        if scraper:
+            scraper.close()
+
+
+async def scrape_source(source_id: UUID):
+    """
+    Async wrapper for scraping that runs the blocking operations in a thread pool.
+    This ensures the FastAPI event loop is not blocked.
+    
+    IMPORTANT: For Air Cargo Week (Playwright), we run the standalone script as subprocess
+    because Playwright has issues in threads. For other sources, we use thread pool.
+    """
+    # Check if this is Air Cargo Week (needs special handling for Playwright)
+    source = db.get_source(source_id)
+    if source and 'aircargoweek.com' in source.url.lower():
+        # For Air Cargo Week, run standalone script as subprocess
+        # This avoids Playwright threading issues
+        logger.info(f"Using subprocess for Air Cargo Week (Playwright compatibility)")
+        await _scrape_via_subprocess(source_id)
+    else:
+        # For other sources, use thread pool (works fine for non-Playwright scrapers)
+        try:
+            loop = asyncio.get_event_loop()
+            await asyncio.wait_for(
+                loop.run_in_executor(SCRAPING_EXECUTOR, _scrape_source_sync, source_id),
+                timeout=1800  # 30 minutes timeout
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"⚠️  Scraping for source {source_id} timed out after 30 minutes. It may have hung.")
+            # Log the timeout
+            try:
+                source = db.get_source(source_id)
+                log = ScrapingLogCreate(
+                    source_id=source_id,
+                    status='failed',
+                    error_message="Scraping timed out after 30 minutes. The scraper may have hung.",
+                    articles_found=0
+                )
+                db.create_scraping_log(log)
+            except Exception as e:
+                logger.error(f"Error logging timeout: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error in scrape_source for {source_id}: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
+
+async def _scrape_via_subprocess(source_id: UUID):
+    """
+    Run scraping via subprocess (for Playwright-based scrapers like Air Cargo Week).
+    This avoids Playwright threading issues by running the standalone script.
+    """
+    try:
+        # Get the project root directory
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        script_path = os.path.join(project_root, 'scrape_aircargoweek.py')
+        
+        # Get Python interpreter path (use venv if available)
+        venv_python = os.path.join(project_root, 'venv', 'bin', 'python3')
+        if os.path.exists(venv_python):
+            python_cmd = venv_python
+        else:
+            python_cmd = sys.executable
+        
+        logger.info(f"Running Air Cargo Week scraper via subprocess: {python_cmd} {script_path}")
+        
+        # Run the standalone script as subprocess
+        # This runs in a completely separate process, avoiding threading issues
+        process = await asyncio.create_subprocess_exec(
+            python_cmd,
+            script_path,
+            '--max-pages', '5',  # First-time scrape limit
+            '--check-duplicates',
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=project_root
+        )
+        
+        # Wait for completion with timeout (30 minutes)
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=1800  # 30 minutes
+            )
+            
+            if process.returncode == 0:
+                logger.info(f"Air Cargo Week scraping completed successfully")
+            else:
+                error_output = stderr.decode() if stderr else "Unknown error"
+                logger.error(f"Air Cargo Week scraping failed with return code {process.returncode}")
+                logger.error(f"Error output: {error_output[:500]}")
+                
+                # Log the failure
+                source = db.get_source(source_id)
+                log = ScrapingLogCreate(
+                    source_id=source_id,
+                    status='failed',
+                    error_message=f"Subprocess failed: {error_output[:200]}",
+                    articles_found=0
+                )
+                db.create_scraping_log(log)
+                
+        except asyncio.TimeoutError:
+            logger.error(f"⚠️  Air Cargo Week scraping timed out after 30 minutes")
+            process.kill()
+            await process.wait()
+            
+            # Log the timeout
+            source = db.get_source(source_id)
+            log = ScrapingLogCreate(
+                source_id=source_id,
+                status='failed',
+                error_message="Scraping timed out after 30 minutes",
+                articles_found=0
+            )
+            db.create_scraping_log(log)
+            
+    except Exception as e:
+        logger.error(f"Error running subprocess for Air Cargo Week: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Log the error
+        try:
+            source = db.get_source(source_id)
+            log = ScrapingLogCreate(
+                source_id=source_id,
+                status='failed',
+                error_message=f"Subprocess error: {str(e)}",
+                articles_found=0
+            )
+            db.create_scraping_log(log)
+        except:
+            pass
+
+
+@router.post("/all")
+async def trigger_scrape_all(background_tasks: BackgroundTasks):
+    """Manually trigger scraping for all active sources."""
+    sources = db.get_all_sources(active_only=True)
+    
+    if not sources:
+        return {
+            "message": "No active sources found",
+            "sources_queued": 0
+        }
+    
+    # Add scraping tasks for all sources
+    for source in sources:
+        background_tasks.add_task(scrape_source, source.id)
+    
+    return {
+        "message": f"Scraping started for {len(sources)} active sources",
+        "sources_queued": len(sources)
+    }
+
+
+@router.post("/{source_id}")
+async def trigger_scrape(source_id: UUID, background_tasks: BackgroundTasks):
+    """Manually trigger scraping for a specific source."""
+    source = db.get_source(source_id)
+    if not source:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Source not found"
+        )
+    
+    # Add scraping task to background
+    background_tasks.add_task(scrape_source, source_id)
+    
+    return {
+        "message": f"Scraping started for source: {source.name}",
+        "source_id": str(source_id)
+    }
+
+
+@router.get("/status/{source_id}")
+async def get_scraping_status(source_id: UUID):
+    """Get the latest scraping status for a source."""
+    try:
+        logs = db.get_scraping_logs(source_id=source_id, limit=1)
+        if logs:
+            latest_log = logs[0]
+            return {
+                "source_id": str(source_id),
+                "status": latest_log.status,
+                "articles_found": latest_log.articles_found,
+                "error_message": latest_log.error_message,
+                "created_at": latest_log.created_at.isoformat() if hasattr(latest_log, 'created_at') else None
+            }
+        return {
+            "source_id": str(source_id),
+            "status": "never_scraped",
+            "message": "No scraping logs found for this source"
+        }
+    except Exception as e:
+        logger.error(f"Error getting scraping status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving scraping status: {str(e)}"
+        )
+
+
+@router.get("/logs/{source_id}")
+async def get_scraping_logs(source_id: UUID, limit: int = 10):
+    """Get scraping logs for a source."""
+    try:
+        logs = db.get_scraping_logs(source_id=source_id, limit=limit)
+        return [{
+            "id": str(log.id),
+            "status": log.status,
+            "articles_found": log.articles_found,
+            "error_message": log.error_message,
+            "created_at": log.created_at.isoformat() if hasattr(log, 'created_at') else None
+        } for log in logs]
+    except Exception as e:
+        logger.error(f"Error getting scraping logs: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving scraping logs: {str(e)}"
+        )
+
