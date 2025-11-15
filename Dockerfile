@@ -44,7 +44,9 @@ COPY . .
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 COPY start_server.py /start_server.py
-RUN chmod +x /start_server.py
+RUN chmod +x /start_server.py && \
+    python3 -c "import sys; print(f'Python path: {sys.executable}')" && \
+    head -1 /start_server.py
 
 # Set PORT environment variable (Railway will override this)
 ENV PORT=8000
