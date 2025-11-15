@@ -40,10 +40,13 @@ RUN playwright install chromium
 # Copy application code
 COPY . .
 
+# Set PORT environment variable (Railway will override this)
+ENV PORT=8000
+
 # Expose port (Railway will map to PORT env var)
 EXPOSE 8000
 
-# Start command (Railway sets PORT env var)
+# Start command (Railway sets PORT env var at runtime)
 # Use shell form to allow environment variable expansion
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
