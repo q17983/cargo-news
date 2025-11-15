@@ -224,6 +224,7 @@ async def scrape_source(source_id: UUID):
         logger.info(f"✅ Detected Air Cargo Week source - Using subprocess (Playwright compatibility)")
         logger.info(f"   Source ID: {source_id}")
         logger.info(f"   Source URL: {source.url}")
+        logger.info(f"   RUNNING_TASKS entry exists: {source_id_str in RUNNING_TASKS}")
         try:
             result = await _scrape_via_subprocess(source_id)
             if result is None:
@@ -237,10 +238,21 @@ async def scrape_source(source_id: UUID):
             raise
         finally:
             # Clean up RUNNING_TASKS entry after completion or failure
+            # Only clean up if the subprocess has finished (not if it's still running)
             source_id_str = str(source_id)
             if source_id_str in RUNNING_TASKS:
-                logger.info(f"🧹 Cleaning up RUNNING_TASKS entry for {source_id_str} (Air Cargo Week)")
-                del RUNNING_TASKS[source_id_str]
+                task_info = RUNNING_TASKS[source_id_str]
+                # Check if process is still running
+                if "process" in task_info:
+                    process = task_info["process"]
+                    if process.returncode is None:
+                        logger.info(f"⏸️  Process still running for {source_id_str}, keeping RUNNING_TASKS entry")
+                    else:
+                        logger.info(f"🧹 Cleaning up RUNNING_TASKS entry for {source_id_str} (Air Cargo Week - process finished)")
+                        del RUNNING_TASKS[source_id_str]
+                else:
+                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry for {source_id_str} (Air Cargo Week - no process)")
+                    del RUNNING_TASKS[source_id_str]
             else:
                 logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found during cleanup (Air Cargo Week)")
     else:
@@ -373,6 +385,9 @@ async def _scrape_via_subprocess(source_id: UUID):
         # Store process in running tasks for cancellation
         # Ensure RUNNING_TASKS entry exists (it should be created in scrape_source before calling this function)
         source_id_str = str(source_id)
+        logger.info(f"🔍 Checking RUNNING_TASKS for {source_id_str} before storing process")
+        logger.info(f"   Current RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
+        
         if source_id_str not in RUNNING_TASKS:
             logger.warning(f"⚠️  RUNNING_TASKS entry missing for {source_id_str}, creating it now")
             # Get source info to create entry
@@ -383,6 +398,7 @@ async def _scrape_via_subprocess(source_id: UUID):
                     "started_at": datetime.now(),
                     "status": "running"
                 }
+                logger.info(f"✅ Created RUNNING_TASKS entry for {source_id_str}")
             except Exception as e:
                 logger.error(f"❌ Failed to get source info for {source_id_str}: {str(e)}")
                 # Create minimal entry
@@ -391,8 +407,23 @@ async def _scrape_via_subprocess(source_id: UUID):
                     "started_at": datetime.now(),
                     "status": "running"
                 }
+                logger.info(f"✅ Created minimal RUNNING_TASKS entry for {source_id_str}")
+        else:
+            logger.info(f"✅ RUNNING_TASKS entry exists for {source_id_str}")
         
-        RUNNING_TASKS[source_id_str]["process"] = process
+        # Double-check entry exists before accessing
+        if source_id_str not in RUNNING_TASKS:
+            raise RuntimeError(f"RUNNING_TASKS entry for {source_id_str} still missing after creation attempt")
+        
+        # Safely store the process
+        try:
+            RUNNING_TASKS[source_id_str]["process"] = process
+            logger.info(f"✅ Successfully stored process in RUNNING_TASKS for {source_id_str}")
+        except KeyError as ke:
+            logger.error(f"❌ KeyError when storing process: {str(ke)}")
+            logger.error(f"   RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
+            logger.error(f"   Looking for: {source_id_str}")
+            raise
         
         # Wait for completion with timeout (30 minutes)
         try:
