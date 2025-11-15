@@ -208,6 +208,13 @@ async def scrape_source(source_id: UUID):
     
     logger.info(f"🔍 Checking source: {source.name} | URL: {source.url}")
     
+    # Initialize RUNNING_TASKS entry for tracking (before starting any scraping)
+    RUNNING_TASKS[str(source_id)] = {
+        "source_name": source.name,
+        "started_at": datetime.now(),
+        "status": "running"
+    }
+    
     # Check if this is Air Cargo Week (needs special handling for Playwright)
     if 'aircargoweek.com' in source.url.lower():
         # For Air Cargo Week, run standalone script as subprocess
@@ -226,14 +233,19 @@ async def scrape_source(source_id: UUID):
             logger.error(f"Traceback: {traceback.format_exc()}")
             # Re-raise to be caught by outer handler if needed
             raise
+        finally:
+            # Clean up RUNNING_TASKS entry after completion or failure
+            if str(source_id) in RUNNING_TASKS:
+                del RUNNING_TASKS[str(source_id)]
     else:
         # For other sources, use thread pool (works fine for non-Playwright scrapers)
         try:
             loop = asyncio.get_event_loop()
-            await asyncio.wait_for(
-                loop.run_in_executor(SCRAPING_EXECUTOR, _scrape_source_sync, source_id),
-                timeout=1800  # 30 minutes timeout
-            )
+            task_future = loop.run_in_executor(SCRAPING_EXECUTOR, _scrape_source_sync, source_id)
+            # Store task future in RUNNING_TASKS for cancellation
+            RUNNING_TASKS[str(source_id)]["task"] = task_future
+            
+            await asyncio.wait_for(task_future, timeout=1800)  # 30 minutes timeout
         except asyncio.TimeoutError:
             logger.error(f"⚠️  Scraping for source {source_id} timed out after 30 minutes. It may have hung.")
             # Log the timeout
@@ -252,6 +264,10 @@ async def scrape_source(source_id: UUID):
             logger.error(f"Error in scrape_source for {source_id}: {str(e)}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+        finally:
+            # Clean up RUNNING_TASKS entry after completion or failure
+            if str(source_id) in RUNNING_TASKS:
+                del RUNNING_TASKS[str(source_id)]
 
 
 async def _scrape_via_subprocess(source_id: UUID):
