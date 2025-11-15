@@ -440,6 +440,109 @@ async def trigger_scrape(source_id: UUID, background_tasks: BackgroundTasks):
     }
 
 
+@router.get("/running")
+async def get_running_tasks():
+    """Get list of currently running scraping tasks."""
+    running = []
+    for source_id, task_info in RUNNING_TASKS.items():
+        running.append({
+            "source_id": source_id,
+            "source_name": task_info.get("source_name", "Unknown"),
+            "started_at": task_info.get("started_at").isoformat() if task_info.get("started_at") else None,
+            "status": task_info.get("status", "running")
+        })
+    return {
+        "running_tasks": running,
+        "count": len(running)
+    }
+
+
+@router.post("/stop/{source_id}")
+async def stop_scraping(source_id: UUID):
+    """Stop a running scraping task."""
+    source_id_str = str(source_id)
+    
+    if source_id_str not in RUNNING_TASKS:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No running task found for source {source_id}"
+        )
+    
+    task_info = RUNNING_TASKS[source_id_str]
+    
+    # Try to cancel subprocess
+    if "process" in task_info:
+        process = task_info["process"]
+        try:
+            process.terminate()
+            logger.info(f"Terminated subprocess for source {source_id}")
+            # Wait a bit, then kill if still running
+            try:
+                await asyncio.wait_for(process.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                process.kill()
+                logger.warning(f"Killed subprocess for source {source_id} (didn't terminate gracefully)")
+        except Exception as e:
+            logger.error(f"Error stopping subprocess: {str(e)}")
+    
+    # Try to cancel thread pool task
+    if "task" in task_info:
+        task = task_info["task"]
+        try:
+            task.cancel()
+            logger.info(f"Cancelled thread task for source {source_id}")
+        except Exception as e:
+            logger.error(f"Error cancelling task: {str(e)}")
+    
+    # Remove from tracking
+    del RUNNING_TASKS[source_id_str]
+    
+    return {
+        "message": f"Stopped scraping for source {source_id}",
+        "source_id": source_id_str
+    }
+
+
+@router.post("/stop-all")
+async def stop_all_scraping():
+    """Stop all running scraping tasks."""
+    stopped = []
+    source_ids = list(RUNNING_TASKS.keys())
+    
+    for source_id_str in source_ids:
+        task_info = RUNNING_TASKS[source_id_str]
+        
+        # Try to cancel subprocess
+        if "process" in task_info:
+            process = task_info["process"]
+            try:
+                process.terminate()
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    process.kill()
+            except Exception as e:
+                logger.error(f"Error stopping subprocess: {str(e)}")
+        
+        # Try to cancel thread pool task
+        if "task" in task_info:
+            task = task_info["task"]
+            try:
+                task.cancel()
+            except Exception as e:
+                logger.error(f"Error cancelling task: {str(e)}")
+        
+        stopped.append(source_id_str)
+    
+    # Clear all running tasks
+    RUNNING_TASKS.clear()
+    
+    return {
+        "message": f"Stopped {len(stopped)} running tasks",
+        "stopped_tasks": stopped
+    }
+
+
 @router.get("/status/{source_id}")
 async def get_scraping_status(source_id: UUID):
     """Get the latest scraping status for a source."""
