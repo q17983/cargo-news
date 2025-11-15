@@ -37,15 +37,25 @@ export default function SourceList({ sources, onDelete, onTest, onScrape }: Sour
   // Load scraping statuses for all sources
   useEffect(() => {
     const loadStatuses = async () => {
-      for (const source of sources) {
+      // Load statuses in parallel with timeout protection
+      const statusPromises = sources.map(async (source) => {
         try {
           const status = await getScrapingStatus(source.id);
-          setStatuses(prev => ({ ...prev, [source.id]: status }));
+          return { sourceId: source.id, status };
         } catch (err) {
           console.error(`Error loading status for ${source.id}:`, err);
+          return null;
         }
-      }
+      });
+      
+      const results = await Promise.all(statusPromises);
+      results.forEach(result => {
+        if (result) {
+          setStatuses(prev => ({ ...prev, [result.sourceId]: result.status }));
+        }
+      });
     };
+    
     if (sources.length > 0) {
       loadStatuses();
       // Refresh status every 10 seconds

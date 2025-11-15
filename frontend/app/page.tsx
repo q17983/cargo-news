@@ -17,9 +17,30 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadArticles();
-    loadTags();
-    loadSources();
+    // Load data with error handling
+    const loadAll = async () => {
+      try {
+        // Load sources first (needed for filtering)
+        await loadSources();
+        // Then load articles and tags in parallel
+        await Promise.all([
+          loadArticles().catch(err => {
+            console.error('Failed to load articles:', err);
+            setError(`Failed to load articles: ${err.message}`);
+          }),
+          loadTags().catch(err => {
+            console.error('Failed to load tags:', err);
+            // Tags are not critical, so we don't show error
+          })
+        ]);
+      } catch (err: any) {
+        console.error('Failed to load initial data:', err);
+        setError(`Failed to load data: ${err.message}`);
+        setLoading(false);
+      }
+    };
+    
+    loadAll();
   }, [selectedTags]);
 
   useEffect(() => {
@@ -64,24 +85,37 @@ export default function Home() {
       let offset = 0;
       const batchSize = 1000; // Increased to load more articles per batch
       let hasMore = true;
+      const maxBatches = 10; // Safety limit to prevent infinite loops
+      let batchCount = 0;
       
-      while (hasMore) {
-        const batch = await fetchArticles({ 
-          tags: selectedTags.length > 0 ? selectedTags : undefined,
-          limit: batchSize,
-          offset: offset
-        });
-        
-        if (batch.length === 0) {
-          hasMore = false;
-        } else {
-          allArticlesData = [...allArticlesData, ...batch];
-          offset += batchSize;
+      while (hasMore && batchCount < maxBatches) {
+        try {
+          const batch = await fetchArticles({ 
+            tags: selectedTags.length > 0 ? selectedTags : undefined,
+            limit: batchSize,
+            offset: offset
+          });
           
-          // Stop if we got fewer articles than requested (last batch)
-          if (batch.length < batchSize) {
+          if (batch.length === 0) {
             hasMore = false;
+          } else {
+            allArticlesData = [...allArticlesData, ...batch];
+            offset += batchSize;
+            batchCount++;
+            
+            // Stop if we got fewer articles than requested (last batch)
+            if (batch.length < batchSize) {
+              hasMore = false;
+            }
           }
+        } catch (err: any) {
+          // If first batch fails, show error
+          if (batchCount === 0) {
+            throw err;
+          }
+          // If later batch fails, use what we have
+          console.warn(`Failed to fetch batch at offset ${offset}:`, err);
+          hasMore = false;
         }
       }
       

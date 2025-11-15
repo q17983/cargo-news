@@ -1,41 +1,68 @@
+// Get API URL from environment variable
+// NEXT_PUBLIC_API_URL is embedded at build time in Next.js
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
+// Log API URL in development to help debug
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  console.log('🔍 API_URL:', API_URL);
+}
 
-  if (!response.ok) {
-    let errorMessage = 'Request failed';
-    try {
-      const error = await response.json();
-      // Handle different error formats
-      if (error.detail) {
-        // FastAPI error format
-        if (Array.isArray(error.detail)) {
-          // Validation errors
-          errorMessage = error.detail.map((e: any) => e.msg || JSON.stringify(e)).join(', ');
-        } else if (typeof error.detail === 'string') {
-          errorMessage = error.detail;
+// Create AbortController for timeout
+function createTimeoutController(timeoutMs: number = 30000): AbortController {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), timeoutMs);
+  return controller;
+}
+
+async function request<T>(endpoint: string, options?: RequestInit, timeoutMs: number = 30000): Promise<T> {
+  const controller = createTimeoutController(timeoutMs);
+  
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Request failed';
+      try {
+        const error = await response.json();
+        // Handle different error formats
+        if (error.detail) {
+          // FastAPI error format
+          if (Array.isArray(error.detail)) {
+            // Validation errors
+            errorMessage = error.detail.map((e: any) => e.msg || JSON.stringify(e)).join(', ');
+          } else if (typeof error.detail === 'string') {
+            errorMessage = error.detail;
+          } else {
+            errorMessage = JSON.stringify(error.detail);
+          }
+        } else if (error.message) {
+          errorMessage = error.message;
         } else {
-          errorMessage = JSON.stringify(error.detail);
+          errorMessage = JSON.stringify(error);
         }
-      } else if (error.message) {
-        errorMessage = error.message;
-      } else {
-        errorMessage = JSON.stringify(error);
+      } catch {
+        errorMessage = `HTTP error! status: ${response.status} ${response.statusText}`;
       }
-    } catch {
-      errorMessage = `HTTP error! status: ${response.status} ${response.statusText}`;
+      throw new Error(errorMessage);
     }
-    throw new Error(errorMessage);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms. The server may be slow or unresponsive.`);
+    }
+    if (error.message) {
+      throw error;
+    }
+    throw new Error(`Network error: ${error.message || 'Failed to connect to server'}`);
+  }
 }
 
 export async function fetchArticles(params?: {
