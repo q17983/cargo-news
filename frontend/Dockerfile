@@ -18,6 +18,19 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy all source files
 COPY . .
 
+# CRITICAL: Pass NEXT_PUBLIC_API_URL as build argument
+# Railway environment variables are available during build
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+# Verify environment variable is available
+RUN echo "=== Checking NEXT_PUBLIC_API_URL ===" && \
+    if [ -z "$NEXT_PUBLIC_API_URL" ]; then \
+      echo "❌ WARNING: NEXT_PUBLIC_API_URL is not set!"; \
+    else \
+      echo "✅ NEXT_PUBLIC_API_URL is set to: $NEXT_PUBLIC_API_URL"; \
+    fi
+
 # Verify files are copied correctly
 RUN echo "=== Files in /app/ ===" && ls -la /app/ && \
     echo "=== Checking lib/ ===" && \
@@ -26,7 +39,7 @@ RUN echo "=== Files in /app/ ===" && ls -la /app/ && \
     echo "=== Searching for api.ts ===" && \
     find /app -name "api.ts" 2>&1 | head -5
 
-# Build Next.js
+# Build Next.js (this is where NEXT_PUBLIC_API_URL gets embedded)
 RUN npm run build
 
 # Production image
