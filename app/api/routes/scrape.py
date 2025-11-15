@@ -238,59 +238,52 @@ async def _scrape_via_subprocess(source_id: UUID):
     """
     try:
         # Get the project root directory
-        # __file__ is: app/api/routes/scrape.py (locally) or /app/app/api/routes/scrape.py (Railway)
-        # Need to find project root where scrape_aircargoweek.py exists
+        # On Railway: /app/app/api/routes/scrape.py -> script is at /app/scrape_aircargoweek.py
+        # Locally: /Users/sai/Cargo News/app/api/routes/scrape.py -> script is at /Users/sai/Cargo News/scrape_aircargoweek.py
         current_file = os.path.abspath(__file__)
+        logger.info(f"🔍 Current file location: {current_file}")
         
-        # Try different path calculations
-        # Option 1: Go up 4 levels (routes -> api -> app -> project_root)
-        project_root_1 = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
-        script_path_1 = os.path.join(project_root_1, 'scrape_aircargoweek.py')
-        
-        # Option 2: Go up 3 levels (for Railway where /app/app/... structure exists)
-        project_root_2 = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
-        script_path_2 = os.path.join(project_root_2, 'scrape_aircargoweek.py')
-        
-        # Option 3: Check if we're in /app, go up one more level
-        if current_file.startswith('/app/app/'):
-            # Railway structure: /app/app/api/routes/scrape.py
-            # Need to go to /app
-            project_root_3 = '/app'
-            script_path_3 = os.path.join(project_root_3, 'scrape_aircargoweek.py')
+        # Priority 1: Check /app directly (Railway root) - this is the most reliable
+        if os.path.exists('/app/scrape_aircargoweek.py'):
+            script_path = '/app/scrape_aircargoweek.py'
+            project_root = '/app'
+            logger.info(f"✅ Found script at: {script_path} (Railway root - priority 1)")
+        # Priority 2: If we're in /app/app/... structure, go to /app
+        elif current_file.startswith('/app/app/'):
+            script_path = '/app/scrape_aircargoweek.py'
+            project_root = '/app'
+            logger.info(f"✅ Using Railway root path: {script_path} (detected /app/app/ structure)")
+        # Priority 3: Try going up 4 levels (local development)
         else:
-            project_root_3 = None
-            script_path_3 = None
-        
-        # Find which path actually exists
-        script_path = None
-        project_root = None
-        
-        for path, root in [(script_path_1, project_root_1), (script_path_2, project_root_2), (script_path_3, project_root_3)]:
-            if path and os.path.exists(path):
-                script_path = path
-                project_root = root
-                logger.info(f"✅ Found script at: {script_path}")
-                break
-        
-        # If still not found, try searching from common locations
-        if not script_path:
-            # Try /app (Railway root)
-            if os.path.exists('/app/scrape_aircargoweek.py'):
-                script_path = '/app/scrape_aircargoweek.py'
-                project_root = '/app'
-                logger.info(f"✅ Found script at: {script_path} (Railway root)")
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+            script_path = os.path.join(project_root, 'scrape_aircargoweek.py')
+            if os.path.exists(script_path):
+                logger.info(f"✅ Found script at: {script_path} (local development)")
             else:
-                # Last resort: search from current directory
-                logger.error(f"❌ Script not found. Tried:")
-                logger.error(f"   {script_path_1}")
-                logger.error(f"   {script_path_2}")
-                logger.error(f"   {script_path_3 if script_path_3 else 'N/A'}")
-                logger.error(f"   /app/scrape_aircargoweek.py")
-                logger.error(f"   Current file: {current_file}")
-                logger.error(f"   Current working directory: {os.getcwd()}")
-                if os.path.exists('/app'):
-                    logger.error(f"   Files in /app: {os.listdir('/app')[:10]}")
-                raise FileNotFoundError(f"Script not found. Tried: {script_path_1}, {script_path_2}, /app/scrape_aircargoweek.py")
+                # Last resort: try /app anyway (in case we're on Railway but path detection failed)
+                if os.path.exists('/app/scrape_aircargoweek.py'):
+                    script_path = '/app/scrape_aircargoweek.py'
+                    project_root = '/app'
+                    logger.info(f"✅ Found script at: {script_path} (fallback to /app)")
+                else:
+                    # Error - script not found anywhere
+                    logger.error(f"❌ Script not found. Tried:")
+                    logger.error(f"   /app/scrape_aircargoweek.py (Railway root)")
+                    logger.error(f"   {script_path} (local path)")
+                    logger.error(f"   Current file: {current_file}")
+                    logger.error(f"   Current working directory: {os.getcwd()}")
+                    if os.path.exists('/app'):
+                        try:
+                            files_in_app = os.listdir('/app')
+                            logger.error(f"   Files in /app: {files_in_app[:20]}")
+                        except:
+                            logger.error(f"   Could not list /app directory")
+                    raise FileNotFoundError(f"Script not found. Tried: /app/scrape_aircargoweek.py, {script_path}")
+        
+        # Verify script exists before proceeding
+        if not os.path.exists(script_path):
+            logger.error(f"❌ Script path calculated but file doesn't exist: {script_path}")
+            raise FileNotFoundError(f"Script not found at calculated path: {script_path}")
         
         # Get Python interpreter path
         # On Railway, use the system Python (usually at /opt/venv/bin/python or sys.executable)
