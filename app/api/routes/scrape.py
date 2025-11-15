@@ -245,6 +245,7 @@ async def _scrape_via_subprocess(source_id: UUID):
     Run scraping via subprocess (for Playwright-based scrapers like Air Cargo Week).
     This avoids Playwright threading issues by running the standalone script.
     """
+    logger.info(f"🚀 Starting Air Cargo Week subprocess scraping for source: {source_id}")
     try:
         # Get the project root directory
         # On Railway: /app/app/api/routes/scrape.py -> script is at /app/scrape_aircargoweek.py
