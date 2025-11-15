@@ -215,7 +215,17 @@ async def scrape_source(source_id: UUID):
         logger.info(f"✅ Detected Air Cargo Week source - Using subprocess (Playwright compatibility)")
         logger.info(f"   Source ID: {source_id}")
         logger.info(f"   Source URL: {source.url}")
-        await _scrape_via_subprocess(source_id)
+        try:
+            result = await _scrape_via_subprocess(source_id)
+            if result is None:
+                logger.error(f"❌ Subprocess returned None - scraping failed to start for {source_id}")
+                # Error already logged in _scrape_via_subprocess
+        except Exception as e:
+            logger.error(f"❌ Exception in scrape_source for Air Cargo Week: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # Re-raise to be caught by outer handler if needed
+            raise
     else:
         # For other sources, use thread pool (works fine for non-Playwright scrapers)
         try:
@@ -379,22 +389,30 @@ async def _scrape_via_subprocess(source_id: UUID):
         return process
             
     except Exception as e:
-        logger.error(f"Error running subprocess for Air Cargo Week: {str(e)}")
+        error_details = str(e)
+        error_type = type(e).__name__
         import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
+        full_traceback = traceback.format_exc()
         
-        # Log the error
+        logger.error(f"❌ Error running subprocess for Air Cargo Week (source: {source_id})")
+        logger.error(f"   Error type: {error_type}")
+        logger.error(f"   Error message: {error_details}")
+        logger.error(f"   Full traceback:\n{full_traceback}")
+        
+        # Log the error with detailed message
         try:
             source = db.get_source(source_id)
+            error_message = f"Subprocess error ({error_type}): {error_details[:500]}"
             log = ScrapingLogCreate(
                 source_id=source_id,
                 status='failed',
-                error_message=f"Subprocess error: {str(e)}",
+                error_message=error_message,
                 articles_found=0
             )
             db.create_scraping_log(log)
-        except:
-            pass
+            logger.info(f"✅ Error logged to database for source {source_id}")
+        except Exception as log_error:
+            logger.error(f"❌ Failed to log error to database: {str(log_error)}")
         
         # Return None if process creation failed
         return None
