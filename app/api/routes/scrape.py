@@ -22,6 +22,10 @@ router = APIRouter()
 # Instead, we'll use ThreadPoolExecutor with proper error handling and timeouts
 SCRAPING_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="scraper")
 
+# Track running scraping tasks
+# Format: {source_id: {"task": task, "process": process, "started_at": datetime}}
+RUNNING_TASKS = {}
+
 
 def _scrape_source_sync(source_id: UUID):
     """
@@ -244,6 +248,7 @@ async def _scrape_via_subprocess(source_id: UUID):
     """
     Run scraping via subprocess (for Playwright-based scrapers like Air Cargo Week).
     This avoids Playwright threading issues by running the standalone script.
+    Returns the process object so it can be tracked and cancelled.
     """
     logger.info(f"🚀 Starting Air Cargo Week subprocess scraping for source: {source_id}")
     try:
@@ -329,6 +334,9 @@ async def _scrape_via_subprocess(source_id: UUID):
             env=subprocess_env  # CRITICAL: Pass environment variables
         )
         
+        # Store process in running tasks for cancellation
+        RUNNING_TASKS[str(source_id)]["process"] = process
+        
         # Wait for completion with timeout (30 minutes)
         try:
             stdout, stderr = await asyncio.wait_for(
@@ -342,6 +350,8 @@ async def _scrape_via_subprocess(source_id: UUID):
                 error_output = stderr.decode() if stderr else "Unknown error"
                 logger.error(f"Air Cargo Week scraping failed with return code {process.returncode}")
                 logger.error(f"Error output: {error_output[:500]}")
+        
+        return process
                 
                 # Log the failure
                 source = db.get_source(source_id)
