@@ -198,10 +198,19 @@ async def scrape_source(source_id: UUID):
     """
     # Check if this is Air Cargo Week (needs special handling for Playwright)
     source = db.get_source(source_id)
-    if source and 'aircargoweek.com' in source.url.lower():
+    if not source:
+        logger.error(f"❌ Source {source_id} not found in database")
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    logger.info(f"🔍 Checking source: {source.name} | URL: {source.url}")
+    
+    # Check if this is Air Cargo Week (needs special handling for Playwright)
+    if 'aircargoweek.com' in source.url.lower():
         # For Air Cargo Week, run standalone script as subprocess
         # This avoids Playwright threading issues
-        logger.info(f"Using subprocess for Air Cargo Week (Playwright compatibility)")
+        logger.info(f"✅ Detected Air Cargo Week source - Using subprocess (Playwright compatibility)")
+        logger.info(f"   Source ID: {source_id}")
+        logger.info(f"   Source URL: {source.url}")
         await _scrape_via_subprocess(source_id)
     else:
         # For other sources, use thread pool (works fine for non-Playwright scrapers)
