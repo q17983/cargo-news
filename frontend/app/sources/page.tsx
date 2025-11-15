@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import SourceList from '../../components/SourceList';
 import AddSourceForm from '../../components/AddSourceForm';
-import { fetchSources, createSource, deleteSource, testSource, triggerScrape } from '../../lib/api';
+import { fetchSources, createSource, deleteSource, testSource, triggerScrape, stopAllScraping } from '../../lib/api';
 
 export default function SourcesPage() {
   const [sources, setSources] = useState<any[]>([]);
@@ -13,6 +13,7 @@ export default function SourcesPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [scrapingSourceId, setScrapingSourceId] = useState<string | null>(null);
+  const [stoppingAll, setStoppingAll] = useState(false);
 
   useEffect(() => {
     loadSources();

@@ -2,7 +2,7 @@
 
 import { format } from 'date-fns';
 import { useState, useEffect } from 'react';
-import { getScrapingStatus } from '../lib/api';
+import { getScrapingStatus, getRunningTasks, stopScraping } from '../lib/api';
 
 interface Source {
   id: string;
@@ -23,6 +23,13 @@ interface ScrapingStatus {
   error_message?: string;
 }
 
+interface RunningTask {
+  source_id: string;
+  source_name: string;
+  started_at: string;
+  status: string;
+}
+
 interface SourceListProps {
   sources: Source[];
   onDelete: (id: string) => void;
@@ -33,11 +40,13 @@ interface SourceListProps {
 export default function SourceList({ sources, onDelete, onTest, onScrape }: SourceListProps) {
   const [statuses, setStatuses] = useState<Record<string, ScrapingStatus>>({});
   const [loadingStatuses, setLoadingStatuses] = useState<Record<string, boolean>>({});
+  const [runningTasks, setRunningTasks] = useState<Record<string, RunningTask>>({});
+  const [stoppingTasks, setStoppingTasks] = useState<Record<string, boolean>>({});
 
-  // Load scraping statuses for all sources
+  // Load scraping statuses and running tasks
   useEffect(() => {
-    const loadStatuses = async () => {
-      // Load statuses in parallel with timeout protection
+    const loadData = async () => {
+      // Load statuses in parallel
       const statusPromises = sources.map(async (source) => {
         try {
           const status = await getScrapingStatus(source.id);
@@ -48,21 +57,35 @@ export default function SourceList({ sources, onDelete, onTest, onScrape }: Sour
         }
       });
       
-      const results = await Promise.all(statusPromises);
-      results.forEach(result => {
+      const statusResults = await Promise.all(statusPromises);
+      statusResults.forEach(result => {
         if (result) {
           setStatuses(prev => ({ ...prev, [result.sourceId]: result.status }));
         }
       });
+
+      // Load running tasks
+      try {
+        const running = await getRunningTasks();
+        const runningMap: Record<string, RunningTask> = {};
+        running.running_tasks.forEach(task => {
+          runningMap[task.source_id] = task;
+        });
+        setRunningTasks(runningMap);
+      } catch (err) {
+        console.error('Error loading running tasks:', err);
+      }
     };
     
     if (sources.length > 0) {
-      loadStatuses();
-      // Refresh status every 10 seconds
-      const interval = setInterval(loadStatuses, 10000);
+      loadData();
+      // Refresh more frequently if there are running tasks (every 3 seconds)
+      // Otherwise refresh every 10 seconds
+      const hasRunning = Object.keys(runningTasks).length > 0;
+      const interval = setInterval(loadData, hasRunning ? 3000 : 10000);
       return () => clearInterval(interval);
     }
-  }, [sources]);
+  }, [sources, runningTasks]);
 
   if (sources.length === 0) {
     return (
@@ -139,8 +162,23 @@ export default function SourceList({ sources, onDelete, onTest, onScrape }: Sour
                       </span>
                     )}
                   </div>
-                  {statuses[source.id] && (
-                    <div className="text-xs">
+                  {/* Show running status if task is active */}
+                  {runningTasks[source.id] && (
+                    <div className="text-xs mt-1">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
+                          🔄 Scraping...
+                        </span>
+                        <span className="text-gray-500">
+                          Started: {format(new Date(runningTasks[source.id].started_at), 'HH:mm:ss')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Show last scraping result */}
+                  {statuses[source.id] && !runningTasks[source.id] && (
+                    <div className="text-xs mt-1">
                       <div className="text-gray-500">
                         Last: {statuses[source.id].status === 'success' ? '✅' : statuses[source.id].status === 'failed' ? '❌' : '⚠️'} 
                         {statuses[source.id].articles_found} articles
@@ -173,29 +211,66 @@ export default function SourceList({ sources, onDelete, onTest, onScrape }: Sour
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {format(new Date(source.created_at), 'MMM d, yyyy')}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium min-w-[200px]">
+              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium min-w-[250px]">
                 <div className="flex items-center justify-end gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => onScrape(source.id)}
-                    className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition-colors shadow-sm"
-                    title="Scrape this source now"
-                  >
-                    Scrape
-                  </button>
-                  <button
-                    onClick={() => onTest(source.id)}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors shadow-sm"
-                    title="Test connection"
-                  >
-                    Test
-                  </button>
-                  <button
-                    onClick={() => onDelete(source.id)}
-                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors shadow-sm"
-                    title="Delete source"
-                  >
-                    Delete
-                  </button>
+                  {runningTasks[source.id] ? (
+                    <>
+                      <button
+                        onClick={async () => {
+                          if (confirm(`Stop scraping for ${source.name || 'this source'}?`)) {
+                            setStoppingTasks(prev => ({ ...prev, [source.id]: true }));
+                            try {
+                              await stopScraping(source.id);
+                              // Remove from running tasks immediately
+                              setRunningTasks(prev => {
+                                const newTasks = { ...prev };
+                                delete newTasks[source.id];
+                                return newTasks;
+                              });
+                              alert('Scraping stopped successfully');
+                            } catch (err: any) {
+                              alert(`Failed to stop scraping: ${err.message || 'Unknown error'}`);
+                            } finally {
+                              setStoppingTasks(prev => {
+                                const newTasks = { ...prev };
+                                delete newTasks[source.id];
+                                return newTasks;
+                              });
+                            }
+                          }
+                        }}
+                        disabled={stoppingTasks[source.id]}
+                        className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Stop scraping"
+                      >
+                        {stoppingTasks[source.id] ? 'Stopping...' : '⏹ Stop'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => onScrape(source.id)}
+                        className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition-colors shadow-sm"
+                        title="Scrape this source now"
+                      >
+                        Scrape
+                      </button>
+                      <button
+                        onClick={() => onTest(source.id)}
+                        className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors shadow-sm"
+                        title="Test connection"
+                      >
+                        Test
+                      </button>
+                      <button
+                        onClick={() => onDelete(source.id)}
+                        className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors shadow-sm"
+                        title="Delete source"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </td>
             </tr>

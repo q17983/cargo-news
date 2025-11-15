@@ -140,3 +140,27 @@ export async function getScrapingLogs(sourceId: string, limit: number = 10) {
   return request<any[]>(`/api/scrape/logs/${sourceId}?limit=${limit}`);
 }
 
+export async function getRunningTasks() {
+  return request<{
+    running_tasks: Array<{
+      source_id: string;
+      source_name: string;
+      started_at: string;
+      status: string;
+    }>;
+    count: number;
+  }>('/api/scrape/running');
+}
+
+export async function stopScraping(sourceId: string) {
+  return request<{ message: string; source_id: string }>(`/api/scrape/stop/${sourceId}`, {
+    method: 'POST',
+  });
+}
+
+export async function stopAllScraping() {
+  return request<{ message: string; stopped_tasks: string[] }>('/api/scrape/stop-all', {
+    method: 'POST',
+  });
+}
+
