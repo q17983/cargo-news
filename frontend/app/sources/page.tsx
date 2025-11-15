@@ -139,13 +139,35 @@ export default function SourcesPage() {
               <button
                 onClick={handleScrapeAll}
                 disabled={scraping || sources.filter(s => s.is_active).length === 0}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {scraping ? 'Scraping...' : 'Scrape All Sources'}
               </button>
               <button
+                onClick={async () => {
+                  if (confirm('Stop all running scraping tasks?')) {
+                    setStoppingAll(true);
+                    try {
+                      await stopAllScraping();
+                      alert('All scraping tasks stopped successfully');
+                      // Reload sources to refresh status
+                      loadSources();
+                    } catch (err: any) {
+                      alert(`Failed to stop scraping: ${err.message || 'Unknown error'}`);
+                    } finally {
+                      setStoppingAll(false);
+                    }
+                  }
+                }}
+                disabled={stoppingAll}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Stop all running scraping tasks"
+              >
+                {stoppingAll ? 'Stopping...' : '⏹ Stop All'}
+              </button>
+              <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 {showAddForm ? 'Cancel' : 'Add Source'}
               </button>
