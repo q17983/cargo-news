@@ -40,9 +40,11 @@ RUN playwright install chromium
 # Copy application code
 COPY . .
 
-# Copy and set up entrypoint script
+# Copy and set up entrypoint scripts
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+COPY start_server.py /start_server.py
+RUN chmod +x /start_server.py
 
 # Set PORT environment variable (Railway will override this)
 ENV PORT=8000
@@ -50,6 +52,7 @@ ENV PORT=8000
 # Expose port (Railway will map to PORT env var)
 EXPOSE 8000
 
-# Use entrypoint script to ensure PORT variable is expanded
-ENTRYPOINT ["/entrypoint.sh"]
+# Use Python script as primary entrypoint (more reliable than shell script)
+# Falls back to shell script if Python fails
+ENTRYPOINT ["/start_server.py"]
 
