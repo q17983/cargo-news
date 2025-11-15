@@ -59,7 +59,7 @@ playwright install chromium
 ```
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
-GEMINI_API_KEY=your_gemini_api_key
+GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
 ```
 
 ### Optional Variables (Have Defaults):

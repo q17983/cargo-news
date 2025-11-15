@@ -10,7 +10,7 @@ SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_KEY=your-anon-key-here
 
 # Google Gemini API
-GEMINI_API_KEY=your-gemini-api-key
+GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
 
 # Optional
 SCRAPING_DELAY_SECONDS=2

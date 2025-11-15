@@ -103,7 +103,7 @@ git push -u origin main
 
    ```
    Variable Name: GEMINI_API_KEY
-   Value: your_gemini_api_key
+   Value: AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
    ```
    *(Get this from Google AI Studio)*
 
@@ -366,7 +366,7 @@ Railway free tier may sleep after inactivity. To prevent this:
 ```
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
-GEMINI_API_KEY=your_gemini_api_key
+GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
 SCRAPING_DELAY_SECONDS=2
 MAX_RETRIES=3
 ```

@@ -238,13 +238,69 @@ async def _scrape_via_subprocess(source_id: UUID):
     """
     try:
         # Get the project root directory
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        script_path = os.path.join(project_root, 'scrape_aircargoweek.py')
+        # __file__ is: app/api/routes/scrape.py (locally) or /app/app/api/routes/scrape.py (Railway)
+        # Need to find project root where scrape_aircargoweek.py exists
+        current_file = os.path.abspath(__file__)
         
-        # Get Python interpreter path (use venv if available)
+        # Try different path calculations
+        # Option 1: Go up 4 levels (routes -> api -> app -> project_root)
+        project_root_1 = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+        script_path_1 = os.path.join(project_root_1, 'scrape_aircargoweek.py')
+        
+        # Option 2: Go up 3 levels (for Railway where /app/app/... structure exists)
+        project_root_2 = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        script_path_2 = os.path.join(project_root_2, 'scrape_aircargoweek.py')
+        
+        # Option 3: Check if we're in /app, go up one more level
+        if current_file.startswith('/app/app/'):
+            # Railway structure: /app/app/api/routes/scrape.py
+            # Need to go to /app
+            project_root_3 = '/app'
+            script_path_3 = os.path.join(project_root_3, 'scrape_aircargoweek.py')
+        else:
+            project_root_3 = None
+            script_path_3 = None
+        
+        # Find which path actually exists
+        script_path = None
+        project_root = None
+        
+        for path, root in [(script_path_1, project_root_1), (script_path_2, project_root_2), (script_path_3, project_root_3)]:
+            if path and os.path.exists(path):
+                script_path = path
+                project_root = root
+                logger.info(f"✅ Found script at: {script_path}")
+                break
+        
+        # If still not found, try searching from common locations
+        if not script_path:
+            # Try /app (Railway root)
+            if os.path.exists('/app/scrape_aircargoweek.py'):
+                script_path = '/app/scrape_aircargoweek.py'
+                project_root = '/app'
+                logger.info(f"✅ Found script at: {script_path} (Railway root)")
+            else:
+                # Last resort: search from current directory
+                logger.error(f"❌ Script not found. Tried:")
+                logger.error(f"   {script_path_1}")
+                logger.error(f"   {script_path_2}")
+                logger.error(f"   {script_path_3 if script_path_3 else 'N/A'}")
+                logger.error(f"   /app/scrape_aircargoweek.py")
+                logger.error(f"   Current file: {current_file}")
+                logger.error(f"   Current working directory: {os.getcwd()}")
+                if os.path.exists('/app'):
+                    logger.error(f"   Files in /app: {os.listdir('/app')[:10]}")
+                raise FileNotFoundError(f"Script not found. Tried: {script_path_1}, {script_path_2}, /app/scrape_aircargoweek.py")
+        
+        # Get Python interpreter path
+        # On Railway, use the system Python (usually at /opt/venv/bin/python or sys.executable)
+        # On local, try venv first
         venv_python = os.path.join(project_root, 'venv', 'bin', 'python3')
         if os.path.exists(venv_python):
             python_cmd = venv_python
+        elif os.path.exists('/opt/venv/bin/python'):
+            # Railway Python path
+            python_cmd = '/opt/venv/bin/python'
         else:
             python_cmd = sys.executable
         
@@ -252,11 +308,13 @@ async def _scrape_via_subprocess(source_id: UUID):
         
         # Run the standalone script as subprocess
         # This runs in a completely separate process, avoiding threading issues
+        # Note: Script uses --no-duplicate-check to DISABLE duplicate checking
+        # We want duplicate checking enabled, so we don't pass that flag
         process = await asyncio.create_subprocess_exec(
             python_cmd,
             script_path,
             '--max-pages', '5',  # First-time scrape limit
-            '--check-duplicates',
+            # Don't pass --no-duplicate-check, so duplicate checking is enabled by default
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=project_root
