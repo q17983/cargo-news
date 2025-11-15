@@ -204,41 +204,47 @@ export default function Home() {
   ).sort();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <Link href="/" className="flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">Cargo News Aggregator</h1>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link href="/bookmarks" className="text-gray-700 hover:text-gray-900">
-                Bookmarks
-              </Link>
-              <Link href="/sources" className="text-gray-700 hover:text-gray-900">
-                Sources
-              </Link>
-            </div>
+    <div className="min-h-screen bg-white">
+      {/* Mobile-First Header */}
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 safe-area-top">
+        <div className="px-4 h-14 flex items-center justify-between">
+          <h1 className="text-lg font-bold text-gray-900">Cargo News</h1>
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/bookmarks" 
+              className="p-2 rounded-full active:bg-gray-100 transition-colors"
+              aria-label="Bookmarks"
+            >
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
+            </Link>
+            <Link 
+              href="/sources" 
+              className="p-2 rounded-full active:bg-gray-100 transition-colors"
+              aria-label="Sources"
+            >
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+            </Link>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Source Filter Tabs at Top */}
-        <div className="mb-6 bg-white rounded-lg shadow-md p-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-gray-700 mr-2">Filter by Source:</span>
+      <main className="pb-4">
+        {/* Source Filter Tabs - Mobile Optimized */}
+        <div className="sticky top-14 z-40 bg-white border-b border-gray-200 px-4 py-3 overflow-x-auto">
+          <div className="flex items-center gap-2 min-w-max">
             <button
               onClick={() => setSelectedSource(null)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                 selectedSource === null
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  : 'bg-gray-100 text-gray-700 active:bg-gray-200'
               }`}
             >
-              All Sources ({allArticles.length})
+              全部 ({allArticles.length})
             </button>
             {availableSources.map((sourceName) => {
               const count = allArticles.filter(
@@ -248,10 +254,10 @@ export default function Home() {
                 <button
                   key={sourceName}
                   onClick={() => setSelectedSource(sourceName)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                     selectedSource === sourceName
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      : 'bg-gray-100 text-gray-700 active:bg-gray-200'
                   }`}
                 >
                   {sourceName} ({count})
@@ -261,48 +267,137 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex gap-8">
-          <aside className="w-80 flex-shrink-0">
-            <TagFilter
-              tags={tags}
-              selectedTags={selectedTags}
-              onTagToggle={(tag) => {
-                setSelectedTags(prev =>
-                  prev.includes(tag)
-                    ? prev.filter(t => t !== tag)
-                    : [...prev, tag]
-                );
-              }}
-            />
-          </aside>
-
-          <div className="flex-1">
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-800">{error}</p>
-              </div>
-            )}
-
-            {loading ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500">Loading articles...</p>
-              </div>
-            ) : (
-              <>
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Articles ({articles.length})
-                  </h2>
-                  {selectedTags.length > 0 && (
-                    <span className="text-sm text-gray-600">
-                      Filtered by {selectedTags.length} tag{selectedTags.length !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
-                <ArticleList articles={articles} />
-              </>
-            )}
+        {/* Tag Filter - Mobile Drawer Style */}
+        {selectedTags.length > 0 && (
+          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium text-blue-700">已選標籤:</span>
+              {selectedTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => {
+                    setSelectedTags(prev => prev.filter(t => t !== tag));
+                  }}
+                  className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs font-medium active:bg-blue-700 flex items-center gap-1"
+                >
+                  {tag}
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              ))}
+              <button
+                onClick={() => setSelectedTags([])}
+                className="text-xs text-blue-600 font-medium active:text-blue-700"
+              >
+                清除全部
+              </button>
+            </div>
           </div>
+        )}
+
+        {/* Articles List */}
+        <div className="px-4">
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-500 text-sm">載入文章中...</p>
+            </div>
+          ) : (
+            <>
+              {selectedTags.length > 0 && (
+                <div className="mt-4 mb-2 text-sm text-gray-600">
+                  已篩選 {articles.length} 篇文章
+                </div>
+              )}
+              <ArticleList articles={articles} />
+            </>
+          )}
+        </div>
+
+        {/* Tag Filter Button - Floating on Mobile */}
+        {tags.length > 0 && (
+          <div className="fixed bottom-20 right-4 z-30 sm:hidden">
+            <button
+              onClick={() => {
+                const modal = document.getElementById('tag-filter-modal');
+                if (modal) {
+                  modal.classList.remove('hidden');
+                }
+              }}
+              className="w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg active:bg-blue-700 flex items-center justify-center"
+              aria-label="Filter by tags"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Tag Filter Modal - Mobile Only */}
+        <div 
+          id="tag-filter-modal" 
+          className="hidden sm:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              e.currentTarget.classList.add('hidden');
+            }
+          }}
+        >
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[80vh] overflow-hidden flex flex-col safe-area-bottom">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900">篩選標籤</h3>
+              <button
+                onClick={() => {
+                  const modal = document.getElementById('tag-filter-modal');
+                  if (modal) {
+                    modal.classList.add('hidden');
+                  }
+                }}
+                className="p-2 rounded-full active:bg-gray-100"
+                aria-label="Close"
+              >
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <TagFilter
+                tags={tags}
+                selectedTags={selectedTags}
+                onTagToggle={(tag) => {
+                  setSelectedTags(prev =>
+                    prev.includes(tag)
+                      ? prev.filter(t => t !== tag)
+                      : [...prev, tag]
+                  );
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Tag Filter Section - Desktop Only */}
+        <div className="hidden sm:block fixed top-14 right-0 w-80 h-[calc(100vh-3.5rem)] overflow-y-auto border-l border-gray-200 bg-white p-4">
+          <TagFilter
+            tags={tags}
+            selectedTags={selectedTags}
+            onTagToggle={(tag) => {
+              setSelectedTags(prev =>
+                prev.includes(tag)
+                  ? prev.filter(t => t !== tag)
+                  : [...prev, tag]
+              );
+            }}
+          />
         </div>
       </main>
     </div>

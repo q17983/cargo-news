@@ -101,9 +101,9 @@ export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilter
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Filter by Tags</h3>
-      <p className="text-xs text-gray-500 mb-4">({tags.length} total tags)</p>
+    <div className="bg-white">
+      <h3 className="text-lg font-semibold text-gray-900 mb-2 hidden sm:block">Filter by Tags</h3>
+      <p className="text-xs text-gray-500 mb-4 hidden sm:block">({tags.length} total tags)</p>
 
       {/* Tab Selection */}
       <div className="flex gap-2 mb-4 border-b">

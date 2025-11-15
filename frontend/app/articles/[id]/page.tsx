@@ -218,20 +218,43 @@ export default function ArticleDetailPage() {
     router.push(`/articles/${articleId}`);
   };
 
-  // Swipe handlers
+  // Swipe handlers - improved to prevent false triggers during vertical scrolling
+  const touchStartY = useRef<number>(0);
+  const touchEndY = useRef<number>(0);
+  const isScrolling = useRef<boolean>(false);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isScrolling.current = false;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     touchEndX.current = e.touches[0].clientX;
+    touchEndY.current = e.touches[0].clientY;
+    
+    // Check if user is scrolling vertically (more vertical movement than horizontal)
+    const verticalDistance = Math.abs(touchStartY.current - touchEndY.current);
+    const horizontalDistance = Math.abs(touchStartX.current - touchEndX.current);
+    
+    // If vertical movement is significantly more than horizontal, it's a scroll
+    if (verticalDistance > horizontalDistance * 1.5) {
+      isScrolling.current = true;
+    }
   };
 
   const handleTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
     
+    // Don't trigger swipe if user was scrolling vertically
+    if (isScrolling.current) {
+      touchStartX.current = 0;
+      touchEndX.current = 0;
+      return;
+    }
+    
     const distance = touchStartX.current - touchEndX.current;
-    const minSwipeDistance = 50;
+    const minSwipeDistance = 100; // Increased threshold for more intentional swipes
 
     if (distance > minSwipeDistance && nextArticleId) {
       // Swipe left - next article
@@ -240,6 +263,10 @@ export default function ArticleDetailPage() {
       // Swipe right - previous article
       navigateToArticle(prevArticleId);
     }
+    
+    // Reset
+    touchStartX.current = 0;
+    touchEndX.current = 0;
   };
 
   // Keyboard navigation
@@ -304,181 +331,203 @@ export default function ArticleDetailPage() {
   const dateFromSummary = extractDateFromSummary(article.summary || '');
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="text-blue-600 hover:underline">
-                ← Back
-              </Link>
-              {currentIndex >= 0 && (
-                <span className="text-sm text-gray-500">
-                  {currentIndex + 1} / {articleIds.length}
-                </span>
-              )}
-            </div>
-            <button
-              onClick={toggleBookmark}
-              disabled={bookmarkLoading}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                isBookmarked
-                  ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              } disabled:opacity-50`}
+    <div className="min-h-screen bg-white">
+      {/* Mobile-First News App Style Header */}
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 safe-area-top">
+        <div className="flex items-center justify-between h-14 px-4">
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/" 
+              className="p-2 -ml-2 rounded-full active:bg-gray-100 transition-colors"
+              aria-label="Back to articles"
             >
-              {bookmarkLoading ? '...' : isBookmarked ? '★ Bookmarked' : '☆ Bookmark'}
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Navigation Buttons */}
-        <div className="mb-4 flex justify-between items-center">
-          <button
-            onClick={() => prevArticleId && navigateToArticle(prevArticleId)}
-            disabled={!prevArticleId}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-              prevArticleId
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            <span>←</span>
-            <span>Previous</span>
-          </button>
-          
-          <div className="text-sm text-gray-500">
-            {prevArticleId || nextArticleId ? 'Use ← → arrow keys or swipe' : ''}
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+            {currentIndex >= 0 && (
+              <span className="text-xs text-gray-500 font-medium">
+                {currentIndex + 1} / {articleIds.length}
+              </span>
+            )}
           </div>
           
           <button
-            onClick={() => nextArticleId && navigateToArticle(nextArticleId)}
-            disabled={!nextArticleId}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-              nextArticleId
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
+            onClick={toggleBookmark}
+            disabled={bookmarkLoading}
+            className={`p-2 rounded-full transition-colors ${
+              isBookmarked
+                ? 'text-yellow-500 active:bg-yellow-50'
+                : 'text-gray-400 active:bg-gray-100'
+            } disabled:opacity-50`}
+            aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
           >
-            <span>Next</span>
-            <span>→</span>
+            <svg className="w-6 h-6" fill={isBookmarked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
           </button>
         </div>
+      </header>
 
-        <article
-          ref={articleRef}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className="bg-white rounded-lg shadow-md p-8"
-        >
-          {/* Chinese Title */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{article.title}</h1>
-
-          {/* News Date under Chinese title */}
-          {article.published_date ? (
-            <div className="mb-6 text-sm text-gray-600">
-              <span className="font-medium">發布日期：</span>
-              {format(new Date(article.published_date), 'yyyy年MM月dd日')}
-            </div>
-          ) : dateFromSummary ? (
-            <div className="mb-6 text-sm text-gray-600">
-              <span className="font-medium">發布日期：</span>
-              {dateFromSummary}
-            </div>
-          ) : null}
-
-          {/* Website URL */}
-          {article.url && (
-            <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline font-medium flex items-center gap-2"
-              >
-                <span>🔗</span>
-                <span className="truncate">{article.url}</span>
-                <span className="text-xs text-blue-500">(在新視窗開啟)</span>
-              </a>
+      {/* Article Content - News App Style */}
+      <article
+        ref={articleRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="max-w-3xl mx-auto px-4 pb-20"
+      >
+        {/* 1. Translated Title (Chinese) */}
+        <div className="pt-6 pb-4">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight mb-3">
+            {article.title}
+          </h1>
+          
+          {/* Date under title */}
+          {(article.published_date || dateFromSummary) && (
+            <div className="text-sm text-gray-500 mb-4">
+              {article.published_date 
+                ? format(new Date(article.published_date), 'yyyy年MM月dd日')
+                : dateFromSummary}
             </div>
           )}
+        </div>
 
-          {/* Tags */}
-          {article.tags && article.tags.length > 0 && (
-            <div className="mb-6 flex flex-wrap gap-2">
+        {/* 2. Summary Content */}
+        {article.summary && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <div 
+              className="prose prose-sm sm:prose-base max-w-none text-gray-700 leading-relaxed"
+              style={{
+                fontSize: '16px',
+                lineHeight: '1.75',
+              }}
+              dangerouslySetInnerHTML={{ __html: article.summary.replace(/\n/g, '<br />') }}
+            />
+          </div>
+        )}
+
+        {/* 3. Tags */}
+        {article.tags && article.tags.length > 0 && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <div className="flex flex-wrap gap-2">
               {article.tags.map((tag: string, index: number) => (
                 <span
                   key={index}
-                  className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                  className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium"
                 >
                   {tag}
                 </span>
               ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Summary */}
-          {article.summary && (
-            <div className="mb-8">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">摘要</h2>
-              <div
-                className="prose max-w-none text-gray-700 whitespace-pre-line"
-                dangerouslySetInnerHTML={{ __html: article.summary.replace(/\n/g, '<br />') }}
-              />
-            </div>
-          )}
-
-          {/* Full Content */}
-          {article.content && (
-            <div className="mb-8">
-              {/* English Title above full content */}
-              {originalTitle && (
-                <div className="mb-4 p-4 bg-gray-50 border-l-4 border-gray-400 rounded">
-                  <h3 className="text-lg font-semibold text-gray-700 mb-1">Original Title (English)</h3>
-                  <p className="text-gray-900">{originalTitle}</p>
-                </div>
-              )}
-              
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">Full Content</h2>
-              <div className="prose max-w-none text-gray-700 whitespace-pre-line">
-                {article.content}
+        {/* 4. Website URL */}
+        {article.url && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <a
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl active:bg-gray-100 transition-colors group"
+            >
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
               </div>
-            </div>
-          )}
-        </article>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-500 mb-1">原始文章</p>
+                <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                  {article.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                </p>
+              </div>
+              <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          </div>
+        )}
 
-        {/* Bottom Navigation */}
-        <div className="mt-6 flex justify-between items-center">
+        {/* 5. English Title */}
+        {originalTitle && (
+          <div className="mb-6 pb-6 border-b border-gray-200">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Original Title
+            </h2>
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 leading-tight">
+              {originalTitle}
+            </h3>
+          </div>
+        )}
+
+        {/* 6. Original Content */}
+        {article.content && (
+          <div className="mb-8">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
+              Full Article
+            </h2>
+            <div 
+              className="prose prose-sm sm:prose-base max-w-none text-gray-700 leading-relaxed whitespace-pre-line"
+              style={{
+                fontSize: '15px',
+                lineHeight: '1.75',
+              }}
+            >
+              {article.content}
+            </div>
+          </div>
+        )}
+
+        {/* Swipe Hint */}
+        <div className="fixed bottom-20 left-0 right-0 flex justify-center pointer-events-none">
+          <div className="bg-black/70 text-white text-xs px-4 py-2 rounded-full backdrop-blur-sm">
+            {prevArticleId && nextArticleId && '左右滑動切換文章'}
+            {!prevArticleId && nextArticleId && '向左滑動查看下一篇文章'}
+            {prevArticleId && !nextArticleId && '向右滑動查看上一篇文章'}
+          </div>
+        </div>
+      </article>
+
+      {/* Bottom Navigation Bar - Mobile Optimized */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom z-40">
+        <div className="max-w-3xl mx-auto flex items-center justify-between h-16 px-4">
           <button
             onClick={() => prevArticleId && navigateToArticle(prevArticleId)}
             disabled={!prevArticleId}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
               prevArticleId
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'text-gray-700 active:bg-gray-100'
+                : 'text-gray-300 cursor-not-allowed'
             }`}
           >
-            <span>←</span>
-            <span>Previous</span>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-sm font-medium hidden sm:inline">上一則</span>
           </button>
+          
+          <div className="text-xs text-gray-500">
+            {currentIndex >= 0 && `${currentIndex + 1} / ${articleIds.length}`}
+          </div>
           
           <button
             onClick={() => nextArticleId && navigateToArticle(nextArticleId)}
             disabled={!nextArticleId}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
               nextArticleId
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'text-gray-700 active:bg-gray-100'
+                : 'text-gray-300 cursor-not-allowed'
             }`}
           >
-            <span>Next</span>
-            <span>→</span>
+            <span className="text-sm font-medium hidden sm:inline">下一則</span>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
-      </main>
+      </nav>
     </div>
   );
 }
