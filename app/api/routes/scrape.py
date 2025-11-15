@@ -519,9 +519,17 @@ async def _scrape_via_subprocess(source_id: UUID):
                     stdout_text = stdout.decode('utf-8', errors='ignore')
                     logger.info(f"Script output (last 500 chars): {stdout_text[-500:]}")
                 # Clean up RUNNING_TASKS entry after successful completion
-                if source_id_str in RUNNING_TASKS:
-                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after successful completion for {source_id_str}")
-                    del RUNNING_TASKS[source_id_str]
+                # Use try/except to prevent KeyError if entry was already deleted
+                try:
+                    if source_id_str in RUNNING_TASKS:
+                        logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after successful completion for {source_id_str}")
+                        del RUNNING_TASKS[source_id_str]
+                    else:
+                        logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found after success (already cleaned up?)")
+                except KeyError as cleanup_error:
+                    logger.warning(f"⚠️  KeyError during success cleanup: {str(cleanup_error)}")
+                except Exception as cleanup_error:
+                    logger.error(f"❌ Unexpected error during success cleanup: {str(cleanup_error)}")
             else:
                 error_output = stderr.decode('utf-8', errors='ignore') if stderr else "Unknown error"
                 stdout_output = stdout.decode('utf-8', errors='ignore') if stdout else ""
@@ -546,9 +554,17 @@ async def _scrape_via_subprocess(source_id: UUID):
                     logger.error(f"❌ Failed to log subprocess failure: {str(log_error)}")
                 
                 # Clean up RUNNING_TASKS entry after failure
-                if source_id_str in RUNNING_TASKS:
-                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after failure for {source_id_str}")
-                    del RUNNING_TASKS[source_id_str]
+                # Use try/except to prevent KeyError if entry was already deleted
+                try:
+                    if source_id_str in RUNNING_TASKS:
+                        logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after failure for {source_id_str}")
+                        del RUNNING_TASKS[source_id_str]
+                    else:
+                        logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found after failure (already cleaned up?)")
+                except KeyError as cleanup_error:
+                    logger.warning(f"⚠️  KeyError during failure cleanup: {str(cleanup_error)}")
+                except Exception as cleanup_error:
+                    logger.error(f"❌ Unexpected error during failure cleanup: {str(cleanup_error)}")
         
         except asyncio.TimeoutError:
             logger.error(f"⚠️  Air Cargo Week scraping timed out after 30 minutes")
@@ -566,9 +582,17 @@ async def _scrape_via_subprocess(source_id: UUID):
             db.create_scraping_log(log)
             
             # Clean up RUNNING_TASKS entry after timeout
-            if source_id_str in RUNNING_TASKS:
-                logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after timeout for {source_id_str}")
-                del RUNNING_TASKS[source_id_str]
+            # Use try/except to prevent KeyError if entry was already deleted
+            try:
+                if source_id_str in RUNNING_TASKS:
+                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after timeout for {source_id_str}")
+                    del RUNNING_TASKS[source_id_str]
+                else:
+                    logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found after timeout (already cleaned up?)")
+            except KeyError as cleanup_error:
+                logger.warning(f"⚠️  KeyError during timeout cleanup: {str(cleanup_error)}")
+            except Exception as cleanup_error:
+                logger.error(f"❌ Unexpected error during timeout cleanup: {str(cleanup_error)}")
         
         return process
             
@@ -614,9 +638,17 @@ async def _scrape_via_subprocess(source_id: UUID):
             logger.error(f"❌ Failed to log error to database: {str(log_error)}")
         
         # Clean up RUNNING_TASKS entry on exception
-        if source_id_str in RUNNING_TASKS:
-            logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after exception for {source_id_str}")
-            del RUNNING_TASKS[source_id_str]
+        # Use try/except to prevent KeyError if entry was already deleted
+        try:
+            if source_id_str in RUNNING_TASKS:
+                logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after exception for {source_id_str}")
+                del RUNNING_TASKS[source_id_str]
+            else:
+                logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found during exception cleanup (already cleaned up?)")
+        except KeyError as cleanup_error:
+            logger.warning(f"⚠️  KeyError during cleanup (entry may have been deleted): {str(cleanup_error)}")
+        except Exception as cleanup_error:
+            logger.error(f"❌ Unexpected error during cleanup: {str(cleanup_error)}")
         
         # Return None if process creation failed
         return None
