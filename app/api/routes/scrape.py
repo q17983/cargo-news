@@ -361,8 +361,6 @@ async def _scrape_via_subprocess(source_id: UUID):
                 )
                 db.create_scraping_log(log)
         
-        return process
-                
         except asyncio.TimeoutError:
             logger.error(f"⚠️  Air Cargo Week scraping timed out after 30 minutes")
             process.kill()
