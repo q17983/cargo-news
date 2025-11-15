@@ -446,6 +446,9 @@ async def _scrape_via_subprocess(source_id: UUID):
         return None
 
 
+# IMPORTANT: Specific routes must come BEFORE the generic /{source_id} route
+# FastAPI matches routes in order, so /stop/{source_id} would be matched by /{source_id} if it comes first
+
 @router.post("/all")
 async def trigger_scrape_all(background_tasks: BackgroundTasks):
     """Manually trigger scraping for all active sources."""
@@ -467,25 +470,6 @@ async def trigger_scrape_all(background_tasks: BackgroundTasks):
     }
 
 
-@router.post("/{source_id}")
-async def trigger_scrape(source_id: UUID, background_tasks: BackgroundTasks):
-    """Manually trigger scraping for a specific source."""
-    source = db.get_source(source_id)
-    if not source:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Source not found"
-        )
-    
-    # Add scraping task to background
-    background_tasks.add_task(scrape_source, source_id)
-    
-    return {
-        "message": f"Scraping started for source: {source.name}",
-        "source_id": str(source_id)
-    }
-
-
 @router.get("/running")
 async def get_running_tasks():
     """Get list of currently running scraping tasks."""
@@ -500,6 +484,46 @@ async def get_running_tasks():
     return {
         "running_tasks": running,
         "count": len(running)
+    }
+
+
+@router.post("/stop-all")
+async def stop_all_scraping():
+    """Stop all running scraping tasks."""
+    stopped = []
+    source_ids = list(RUNNING_TASKS.keys())
+    
+    for source_id_str in source_ids:
+        task_info = RUNNING_TASKS[source_id_str]
+        
+        # Try to cancel subprocess
+        if "process" in task_info:
+            process = task_info["process"]
+            try:
+                process.terminate()
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    process.kill()
+            except Exception as e:
+                logger.error(f"Error stopping subprocess: {str(e)}")
+        
+        # Try to cancel thread pool task
+        if "task" in task_info:
+            task = task_info["task"]
+            try:
+                task.cancel()
+            except Exception as e:
+                logger.error(f"Error cancelling task: {str(e)}")
+        
+        stopped.append(source_id_str)
+    
+    # Clear all running tasks
+    RUNNING_TASKS.clear()
+    
+    return {
+        "message": f"Stopped {len(stopped)} running tasks",
+        "stopped_tasks": stopped
     }
 
 
@@ -549,46 +573,6 @@ async def stop_scraping(source_id: UUID):
     }
 
 
-@router.post("/stop-all")
-async def stop_all_scraping():
-    """Stop all running scraping tasks."""
-    stopped = []
-    source_ids = list(RUNNING_TASKS.keys())
-    
-    for source_id_str in source_ids:
-        task_info = RUNNING_TASKS[source_id_str]
-        
-        # Try to cancel subprocess
-        if "process" in task_info:
-            process = task_info["process"]
-            try:
-                process.terminate()
-                try:
-                    await asyncio.wait_for(process.wait(), timeout=5.0)
-                except asyncio.TimeoutError:
-                    process.kill()
-            except Exception as e:
-                logger.error(f"Error stopping subprocess: {str(e)}")
-        
-        # Try to cancel thread pool task
-        if "task" in task_info:
-            task = task_info["task"]
-            try:
-                task.cancel()
-            except Exception as e:
-                logger.error(f"Error cancelling task: {str(e)}")
-        
-        stopped.append(source_id_str)
-    
-    # Clear all running tasks
-    RUNNING_TASKS.clear()
-    
-    return {
-        "message": f"Stopped {len(stopped)} running tasks",
-        "stopped_tasks": stopped
-    }
-
-
 @router.get("/status/{source_id}")
 async def get_scraping_status(source_id: UUID):
     """Get the latest scraping status for a source."""
@@ -634,4 +618,24 @@ async def get_scraping_logs(source_id: UUID, limit: int = 10):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving scraping logs: {str(e)}"
         )
+
+
+# Generic route must come LAST - it matches any UUID
+@router.post("/{source_id}")
+async def trigger_scrape(source_id: UUID, background_tasks: BackgroundTasks):
+    """Manually trigger scraping for a specific source."""
+    source = db.get_source(source_id)
+    if not source:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Source not found"
+        )
+    
+    # Add scraping task to background
+    background_tasks.add_task(scrape_source, source_id)
+    
+    return {
+        "message": f"Scraping started for source: {source.name}",
+        "source_id": str(source_id)
+    }
 
