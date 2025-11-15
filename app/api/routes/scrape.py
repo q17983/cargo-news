@@ -350,8 +350,6 @@ async def _scrape_via_subprocess(source_id: UUID):
                 error_output = stderr.decode() if stderr else "Unknown error"
                 logger.error(f"Air Cargo Week scraping failed with return code {process.returncode}")
                 logger.error(f"Error output: {error_output[:500]}")
-        
-        return process
                 
                 # Log the failure
                 source = db.get_source(source_id)
@@ -362,6 +360,8 @@ async def _scrape_via_subprocess(source_id: UUID):
                     articles_found=0
                 )
                 db.create_scraping_log(log)
+        
+        return process
                 
         except asyncio.TimeoutError:
             logger.error(f"⚠️  Air Cargo Week scraping timed out after 30 minutes")
