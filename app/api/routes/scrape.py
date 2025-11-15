@@ -420,17 +420,32 @@ async def _scrape_via_subprocess(source_id: UUID):
         else:
             python_cmd = sys.executable
         
-        logger.info(f"Running Air Cargo Week scraper via subprocess: {python_cmd} {script_path}")
+        logger.info(f"🟢 [DEBUG] Running Air Cargo Week scraper via subprocess")
+        logger.info(f"🟢 [DEBUG]   Python command: {python_cmd}")
+        logger.info(f"🟢 [DEBUG]   Script path: {script_path}")
+        logger.info(f"🟢 [DEBUG]   Working directory: {project_root}")
+        logger.info(f"🟢 [DEBUG]   Script exists: {os.path.exists(script_path)}")
         
         # CRITICAL: Pass environment variables to subprocess
         # The subprocess needs access to GEMINI_API_KEY, SUPABASE_URL, SUPABASE_KEY, etc.
         subprocess_env = os.environ.copy()
-        logger.info(f"Passing environment variables to subprocess (GEMINI_API_KEY present: {'GEMINI_API_KEY' in subprocess_env})")
+        logger.info(f"🟢 [DEBUG] Environment variables:")
+        logger.info(f"🟢 [DEBUG]   GEMINI_API_KEY present: {'GEMINI_API_KEY' in subprocess_env}")
+        logger.info(f"🟢 [DEBUG]   SUPABASE_URL present: {'SUPABASE_URL' in subprocess_env}")
+        logger.info(f"🟢 [DEBUG]   SUPABASE_KEY present: {'SUPABASE_KEY' in subprocess_env}")
+        if 'GEMINI_API_KEY' in subprocess_env:
+            logger.info(f"🟢 [DEBUG]   GEMINI_API_KEY length: {len(subprocess_env['GEMINI_API_KEY'])}")
+        if 'SUPABASE_URL' in subprocess_env:
+            logger.info(f"🟢 [DEBUG]   SUPABASE_URL: {subprocess_env['SUPABASE_URL'][:50]}...")
         
         # Run the standalone script as subprocess
         # This runs in a completely separate process, avoiding threading issues
         # Note: Script uses --no-duplicate-check to DISABLE duplicate checking
         # We want duplicate checking enabled, so we don't pass that flag
+        cmd_args = [python_cmd, script_path, '--max-pages', '5']
+        logger.info(f"🟢 [DEBUG] Command: {' '.join(cmd_args)}")
+        logger.info(f"🟢 [DEBUG] Starting subprocess...")
+        
         process = await asyncio.create_subprocess_exec(
             python_cmd,
             script_path,
@@ -441,6 +456,8 @@ async def _scrape_via_subprocess(source_id: UUID):
             cwd=project_root,
             env=subprocess_env  # CRITICAL: Pass environment variables
         )
+        
+        logger.info(f"🟢 [DEBUG] Subprocess started with PID: {process.pid}")
         
         # Store process in running tasks for cancellation
         # Ensure RUNNING_TASKS entry exists (it should be created in scrape_source before calling this function)
@@ -517,27 +534,27 @@ async def _scrape_via_subprocess(source_id: UUID):
                 # Also decode stdout to see script output
                 if stdout:
                     stdout_text = stdout.decode('utf-8', errors='ignore')
-                    logger.info(f"Script output (last 500 chars): {stdout_text[-500:]}")
+                    logger.info(f"🟢 [DEBUG] Full stdout ({len(stdout_text)} chars):")
+                    logger.info(f"{stdout_text}")
+                    logger.info(f"🟢 [DEBUG] Last 500 chars: {stdout_text[-500:]}")
+                if stderr:
+                    stderr_text = stderr.decode('utf-8', errors='ignore')
+                    logger.info(f"🟢 [DEBUG] Full stderr ({len(stderr_text)} chars):")
+                    logger.info(f"{stderr_text}")
                 # Clean up RUNNING_TASKS entry after successful completion
-                # Use try/except to prevent KeyError if entry was already deleted
-                try:
-                    if source_id_str in RUNNING_TASKS:
-                        logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after successful completion for {source_id_str}")
-                        del RUNNING_TASKS[source_id_str]
-                    else:
-                        logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found after success (already cleaned up?)")
-                except KeyError as cleanup_error:
-                    logger.warning(f"⚠️  KeyError during success cleanup: {str(cleanup_error)}")
-                except Exception as cleanup_error:
-                    logger.error(f"❌ Unexpected error during success cleanup: {str(cleanup_error)}")
+                if source_id_str in RUNNING_TASKS:
+                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after successful completion for {source_id_str}")
+                    del RUNNING_TASKS[source_id_str]
             else:
                 error_output = stderr.decode('utf-8', errors='ignore') if stderr else "Unknown error"
                 stdout_output = stdout.decode('utf-8', errors='ignore') if stdout else ""
                 
                 logger.error(f"❌ Air Cargo Week scraping failed with return code {process.returncode}")
-                logger.error(f"   Stderr: {error_output[:1000]}")
+                logger.error(f"🔴 [DEBUG] Full stderr ({len(error_output)} chars):")
+                logger.error(f"{error_output}")
                 if stdout_output:
-                    logger.error(f"   Stdout: {stdout_output[-500:]}")
+                    logger.error(f"🔴 [DEBUG] Full stdout ({len(stdout_output)} chars):")
+                    logger.error(f"{stdout_output}")
                 
                 # Log the failure with more details
                 try:
@@ -554,17 +571,9 @@ async def _scrape_via_subprocess(source_id: UUID):
                     logger.error(f"❌ Failed to log subprocess failure: {str(log_error)}")
                 
                 # Clean up RUNNING_TASKS entry after failure
-                # Use try/except to prevent KeyError if entry was already deleted
-                try:
-                    if source_id_str in RUNNING_TASKS:
-                        logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after failure for {source_id_str}")
-                        del RUNNING_TASKS[source_id_str]
-                    else:
-                        logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found after failure (already cleaned up?)")
-                except KeyError as cleanup_error:
-                    logger.warning(f"⚠️  KeyError during failure cleanup: {str(cleanup_error)}")
-                except Exception as cleanup_error:
-                    logger.error(f"❌ Unexpected error during failure cleanup: {str(cleanup_error)}")
+                if source_id_str in RUNNING_TASKS:
+                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after failure for {source_id_str}")
+                    del RUNNING_TASKS[source_id_str]
         
         except asyncio.TimeoutError:
             logger.error(f"⚠️  Air Cargo Week scraping timed out after 30 minutes")
@@ -582,17 +591,9 @@ async def _scrape_via_subprocess(source_id: UUID):
             db.create_scraping_log(log)
             
             # Clean up RUNNING_TASKS entry after timeout
-            # Use try/except to prevent KeyError if entry was already deleted
-            try:
-                if source_id_str in RUNNING_TASKS:
-                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after timeout for {source_id_str}")
-                    del RUNNING_TASKS[source_id_str]
-                else:
-                    logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found after timeout (already cleaned up?)")
-            except KeyError as cleanup_error:
-                logger.warning(f"⚠️  KeyError during timeout cleanup: {str(cleanup_error)}")
-            except Exception as cleanup_error:
-                logger.error(f"❌ Unexpected error during timeout cleanup: {str(cleanup_error)}")
+            if source_id_str in RUNNING_TASKS:
+                logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after timeout for {source_id_str}")
+                del RUNNING_TASKS[source_id_str]
         
         return process
             
@@ -638,17 +639,9 @@ async def _scrape_via_subprocess(source_id: UUID):
             logger.error(f"❌ Failed to log error to database: {str(log_error)}")
         
         # Clean up RUNNING_TASKS entry on exception
-        # Use try/except to prevent KeyError if entry was already deleted
-        try:
-            if source_id_str in RUNNING_TASKS:
-                logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after exception for {source_id_str}")
-                del RUNNING_TASKS[source_id_str]
-            else:
-                logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found during exception cleanup (already cleaned up?)")
-        except KeyError as cleanup_error:
-            logger.warning(f"⚠️  KeyError during cleanup (entry may have been deleted): {str(cleanup_error)}")
-        except Exception as cleanup_error:
-            logger.error(f"❌ Unexpected error during cleanup: {str(cleanup_error)}")
+        if source_id_str in RUNNING_TASKS:
+            logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after exception for {source_id_str}")
+            del RUNNING_TASKS[source_id_str]
         
         # Return None if process creation failed
         return None
