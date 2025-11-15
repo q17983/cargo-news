@@ -237,24 +237,32 @@ async def scrape_source(source_id: UUID):
             # Re-raise to be caught by outer handler if needed
             raise
         finally:
-            # Clean up RUNNING_TASKS entry after completion or failure
-            # Only clean up if the subprocess has finished (not if it's still running)
+            # DO NOT clean up RUNNING_TASKS entry here!
+            # The entry must persist until the process actually finishes
+            # Cleanup happens when:
+            # 1. Process completes (in the process.communicate() handler)
+            # 2. Process times out (in the TimeoutError handler)
+            # 3. User explicitly stops it (in stop_scraping endpoint)
             source_id_str = str(source_id)
+            logger.info(f"🔍 scrape_source finally block for Air Cargo Week: {source_id_str}")
+            logger.info(f"   RUNNING_TASKS entry exists: {source_id_str in RUNNING_TASKS}")
             if source_id_str in RUNNING_TASKS:
                 task_info = RUNNING_TASKS[source_id_str]
-                # Check if process is still running
                 if "process" in task_info:
                     process = task_info["process"]
                     if process.returncode is None:
-                        logger.info(f"⏸️  Process still running for {source_id_str}, keeping RUNNING_TASKS entry")
+                        logger.info(f"⏸️  Process still running - keeping RUNNING_TASKS entry for {source_id_str}")
+                        # Don't delete - process is still running!
                     else:
-                        logger.info(f"🧹 Cleaning up RUNNING_TASKS entry for {source_id_str} (Air Cargo Week - process finished)")
+                        logger.info(f"✅ Process finished (returncode: {process.returncode}) - will clean up entry for {source_id_str}")
+                        # Process finished, safe to clean up
                         del RUNNING_TASKS[source_id_str]
                 else:
-                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry for {source_id_str} (Air Cargo Week - no process)")
+                    logger.warning(f"⚠️  No process in RUNNING_TASKS entry for {source_id_str} - cleaning up")
+                    # No process stored, safe to clean up
                     del RUNNING_TASKS[source_id_str]
             else:
-                logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found during cleanup (Air Cargo Week)")
+                logger.warning(f"⚠️  RUNNING_TASKS entry for {source_id_str} not found (already cleaned up?)")
     else:
         # For other sources, use thread pool (works fine for non-Playwright scrapers)
         try:
@@ -298,7 +306,35 @@ async def _scrape_via_subprocess(source_id: UUID):
     This avoids Playwright threading issues by running the standalone script.
     Returns the process object so it can be tracked and cancelled.
     """
-    logger.info(f"🚀 Starting Air Cargo Week subprocess scraping for source: {source_id}")
+    source_id_str = str(source_id)
+    logger.info(f"🚀 Starting Air Cargo Week subprocess scraping for source: {source_id_str}")
+    
+    # CRITICAL: Ensure RUNNING_TASKS entry exists at the very start
+    # This prevents any KeyError from happening later
+    if source_id_str not in RUNNING_TASKS:
+        logger.warning(f"⚠️  RUNNING_TASKS entry missing at start of _scrape_via_subprocess for {source_id_str}")
+        logger.warning(f"   Current RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
+        # Create entry immediately
+        try:
+            source = db.get_source(source_id)
+            RUNNING_TASKS[source_id_str] = {
+                "source_name": source.name if source else "Unknown",
+                "started_at": datetime.now(),
+                "status": "running"
+            }
+            logger.info(f"✅ Created RUNNING_TASKS entry at start for {source_id_str}")
+        except Exception as e:
+            logger.error(f"❌ Failed to get source info: {str(e)}")
+            # Create minimal entry
+            RUNNING_TASKS[source_id_str] = {
+                "source_name": "Unknown",
+                "started_at": datetime.now(),
+                "status": "running"
+            }
+            logger.info(f"✅ Created minimal RUNNING_TASKS entry at start for {source_id_str}")
+    else:
+        logger.info(f"✅ RUNNING_TASKS entry exists at start for {source_id_str}")
+    
     try:
         # Get the project root directory
         # On Railway: /app/app/api/routes/scrape.py -> script is at /app/scrape_aircargoweek.py
@@ -438,6 +474,10 @@ async def _scrape_via_subprocess(source_id: UUID):
                 if stdout:
                     stdout_text = stdout.decode('utf-8', errors='ignore')
                     logger.info(f"Script output (last 500 chars): {stdout_text[-500:]}")
+                # Clean up RUNNING_TASKS entry after successful completion
+                if source_id_str in RUNNING_TASKS:
+                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after successful completion for {source_id_str}")
+                    del RUNNING_TASKS[source_id_str]
             else:
                 error_output = stderr.decode('utf-8', errors='ignore') if stderr else "Unknown error"
                 stdout_output = stdout.decode('utf-8', errors='ignore') if stdout else ""
@@ -460,6 +500,11 @@ async def _scrape_via_subprocess(source_id: UUID):
                     db.create_scraping_log(log)
                 except Exception as log_error:
                     logger.error(f"❌ Failed to log subprocess failure: {str(log_error)}")
+                
+                # Clean up RUNNING_TASKS entry after failure
+                if source_id_str in RUNNING_TASKS:
+                    logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after failure for {source_id_str}")
+                    del RUNNING_TASKS[source_id_str]
         
         except asyncio.TimeoutError:
             logger.error(f"⚠️  Air Cargo Week scraping timed out after 30 minutes")
@@ -475,6 +520,11 @@ async def _scrape_via_subprocess(source_id: UUID):
                 articles_found=0
             )
             db.create_scraping_log(log)
+            
+            # Clean up RUNNING_TASKS entry after timeout
+            if source_id_str in RUNNING_TASKS:
+                logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after timeout for {source_id_str}")
+                del RUNNING_TASKS[source_id_str]
         
         return process
             
@@ -484,7 +534,7 @@ async def _scrape_via_subprocess(source_id: UUID):
         import traceback
         full_traceback = traceback.format_exc()
         
-        logger.error(f"❌ Error running subprocess for Air Cargo Week (source: {source_id})")
+        logger.error(f"❌ Error running subprocess for Air Cargo Week (source: {source_id_str})")
         logger.error(f"   Error type: {error_type}")
         logger.error(f"   Error message: {error_details}")
         logger.error(f"   Full traceback:\n{full_traceback}")
@@ -500,9 +550,14 @@ async def _scrape_via_subprocess(source_id: UUID):
                 articles_found=0
             )
             db.create_scraping_log(log)
-            logger.info(f"✅ Error logged to database for source {source_id}")
+            logger.info(f"✅ Error logged to database for source {source_id_str}")
         except Exception as log_error:
             logger.error(f"❌ Failed to log error to database: {str(log_error)}")
+        
+        # Clean up RUNNING_TASKS entry on exception
+        if source_id_str in RUNNING_TASKS:
+            logger.info(f"🧹 Cleaning up RUNNING_TASKS entry after exception for {source_id_str}")
+            del RUNNING_TASKS[source_id_str]
         
         # Return None if process creation failed
         return None
