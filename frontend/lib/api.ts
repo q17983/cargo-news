@@ -2,9 +2,17 @@
 // NEXT_PUBLIC_API_URL is embedded at build time in Next.js
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Log API URL in development to help debug
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  console.log('🔍 API_URL:', API_URL);
+// ALWAYS log API URL to help debug (even in production)
+if (typeof window !== 'undefined') {
+  console.log('🔍 API_URL being used:', API_URL);
+  console.log('🔍 NEXT_PUBLIC_API_URL from env:', process.env.NEXT_PUBLIC_API_URL);
+  
+  // Warn if still using localhost
+  if (API_URL.includes('localhost')) {
+    console.error('❌ WARNING: Using localhost! NEXT_PUBLIC_API_URL was not set during build!');
+  } else {
+    console.log('✅ Using production API URL');
+  }
 }
 
 // Create AbortController for timeout
