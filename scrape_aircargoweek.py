@@ -19,28 +19,41 @@ import os
 # Get project root first
 project_root = os.path.dirname(os.path.abspath(__file__))
 
+# Check if running in Railway/Docker (packages installed globally, no venv needed)
+is_railway = os.environ.get('RAILWAY_ENVIRONMENT') is not None
+is_docker = os.path.exists('/.dockerenv') or os.path.exists('/proc/self/cgroup')
+skip_venv_check = is_railway or is_docker
+
 # Check if running in virtual environment, if not, try to use venv Python
-venv_python = os.path.join(project_root, 'venv', 'bin', 'python3')
-if not hasattr(sys, 'real_prefix') and not (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
-    # Not in venv, check if venv exists and use it
-    if os.path.exists(venv_python):
-        print("=" * 70)
-        print("⚠️  Not in virtual environment. Switching to venv Python...")
-        print("=" * 70)
-        print()
-        # Re-execute with venv Python
-        os.execv(venv_python, [venv_python] + sys.argv)
-    else:
-        print("=" * 70)
-        print("⚠️  WARNING: Virtual environment not found!")
-        print("=" * 70)
-        print()
-        print("Please create and activate the virtual environment first:")
-        print("  python3 -m venv venv")
-        print("  source venv/bin/activate")
-        print("  pip install -r requirements.txt")
-        print()
-        sys.exit(1)
+# Skip this check in Railway/Docker where packages are installed globally
+if not skip_venv_check:
+    venv_python = os.path.join(project_root, 'venv', 'bin', 'python3')
+    if not hasattr(sys, 'real_prefix') and not (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        # Not in venv, check if venv exists and use it
+        if os.path.exists(venv_python):
+            print("=" * 70)
+            print("⚠️  Not in virtual environment. Switching to venv Python...")
+            print("=" * 70)
+            print()
+            # Re-execute with venv Python
+            os.execv(venv_python, [venv_python] + sys.argv)
+        else:
+            print("=" * 70)
+            print("⚠️  WARNING: Virtual environment not found!")
+            print("=" * 70)
+            print()
+            print("Please create and activate the virtual environment first:")
+            print("  python3 -m venv venv")
+            print("  source venv/bin/activate")
+            print("  pip install -r requirements.txt")
+            print()
+            sys.exit(1)
+else:
+    # Running in Railway/Docker - packages are installed globally
+    print("=" * 70)
+    print("✅ Running in Railway/Docker environment - using global Python packages")
+    print("=" * 70)
+    print()
 
 # Add project root to Python path
 sys.path.insert(0, project_root)
