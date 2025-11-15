@@ -7,6 +7,26 @@ import os
 import sys
 
 def main():
+    # Change to /app directory where the application code is
+    os.chdir('/app')
+    
+    # Add /app to Python path to ensure imports work
+    if '/app' not in sys.path:
+        sys.path.insert(0, '/app')
+    
+    # Debug: Print current directory and Python path
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Python path: {sys.path[:3]}...")  # Print first 3 entries
+    
+    # Check if app.main exists
+    try:
+        import app.main
+        print("✅ Successfully imported app.main")
+    except ImportError as e:
+        print(f"❌ Failed to import app.main: {e}", file=sys.stderr)
+        print(f"Files in /app: {os.listdir('/app')[:10]}", file=sys.stderr)
+        sys.exit(1)
+    
     # Get PORT from environment, default to 8000
     port = os.environ.get('PORT', '8000')
     
