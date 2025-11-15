@@ -375,6 +375,8 @@ async def _scrape_via_subprocess(source_id: UUID):
                 articles_found=0
             )
             db.create_scraping_log(log)
+        
+        return process
             
     except Exception as e:
         logger.error(f"Error running subprocess for Air Cargo Week: {str(e)}")
@@ -393,6 +395,9 @@ async def _scrape_via_subprocess(source_id: UUID):
             db.create_scraping_log(log)
         except:
             pass
+        
+        # Return None if process creation failed
+        return None
 
 
 @router.post("/all")
