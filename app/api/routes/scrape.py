@@ -299,6 +299,11 @@ async def _scrape_via_subprocess(source_id: UUID):
         
         logger.info(f"Running Air Cargo Week scraper via subprocess: {python_cmd} {script_path}")
         
+        # CRITICAL: Pass environment variables to subprocess
+        # The subprocess needs access to GEMINI_API_KEY, SUPABASE_URL, SUPABASE_KEY, etc.
+        subprocess_env = os.environ.copy()
+        logger.info(f"Passing environment variables to subprocess (GEMINI_API_KEY present: {'GEMINI_API_KEY' in subprocess_env})")
+        
         # Run the standalone script as subprocess
         # This runs in a completely separate process, avoiding threading issues
         # Note: Script uses --no-duplicate-check to DISABLE duplicate checking
@@ -310,7 +315,8 @@ async def _scrape_via_subprocess(source_id: UUID):
             # Don't pass --no-duplicate-check, so duplicate checking is enabled by default
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=project_root
+            cwd=project_root,
+            env=subprocess_env  # CRITICAL: Pass environment variables
         )
         
         # Wait for completion with timeout (30 minutes)
