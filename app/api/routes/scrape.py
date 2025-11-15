@@ -200,6 +200,11 @@ async def scrape_source(source_id: UUID):
     IMPORTANT: For Air Cargo Week (Playwright), we run the standalone script as subprocess
     because Playwright has issues in threads. For other sources, we use thread pool.
     """
+    source_id_str = str(source_id)
+    logger.info(f"🔵 [DEBUG] scrape_source START for {source_id_str}")
+    logger.info(f"🔵 [DEBUG] Current RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
+    logger.info(f"🔵 [DEBUG] RUNNING_TASKS entry exists: {source_id_str in RUNNING_TASKS}")
+    
     # Check if this is Air Cargo Week (needs special handling for Playwright)
     source = db.get_source(source_id)
     if not source:
@@ -209,13 +214,15 @@ async def scrape_source(source_id: UUID):
     logger.info(f"🔍 Checking source: {source.name} | URL: {source.url}")
     
     # Initialize RUNNING_TASKS entry for tracking (before starting any scraping)
-    source_id_str = str(source_id)
+    logger.info(f"🔵 [DEBUG] About to create RUNNING_TASKS entry for {source_id_str}")
     RUNNING_TASKS[source_id_str] = {
         "source_name": source.name,
         "started_at": datetime.now(),
         "status": "running"
     }
-    logger.info(f"✅ Initialized RUNNING_TASKS entry for {source_id_str}: {list(RUNNING_TASKS.keys())}")
+    logger.info(f"✅ Initialized RUNNING_TASKS entry for {source_id_str}")
+    logger.info(f"🔵 [DEBUG] After creation - RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
+    logger.info(f"🔵 [DEBUG] Entry content: {RUNNING_TASKS.get(source_id_str, 'NOT FOUND')}")
     
     # Check if this is Air Cargo Week (needs special handling for Playwright)
     if 'aircargoweek.com' in source.url.lower():
@@ -224,14 +231,24 @@ async def scrape_source(source_id: UUID):
         logger.info(f"✅ Detected Air Cargo Week source - Using subprocess (Playwright compatibility)")
         logger.info(f"   Source ID: {source_id}")
         logger.info(f"   Source URL: {source.url}")
-        logger.info(f"   RUNNING_TASKS entry exists: {source_id_str in RUNNING_TASKS}")
+        logger.info(f"🔵 [DEBUG] Before calling _scrape_via_subprocess:")
+        logger.info(f"🔵 [DEBUG]   RUNNING_TASKS entry exists: {source_id_str in RUNNING_TASKS}")
+        logger.info(f"🔵 [DEBUG]   RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
+        if source_id_str in RUNNING_TASKS:
+            logger.info(f"🔵 [DEBUG]   Entry content: {RUNNING_TASKS[source_id_str]}")
         try:
+            logger.info(f"🔵 [DEBUG] Calling _scrape_via_subprocess({source_id_str})")
             result = await _scrape_via_subprocess(source_id)
             if result is None:
                 logger.error(f"❌ Subprocess returned None - scraping failed to start for {source_id}")
                 # Error already logged in _scrape_via_subprocess
         except Exception as e:
             logger.error(f"❌ Exception in scrape_source for Air Cargo Week: {str(e)}")
+            logger.error(f"🔴 [DEBUG] Exception type: {type(e).__name__}")
+            logger.error(f"🔴 [DEBUG] Exception args: {e.args}")
+            logger.error(f"🔴 [DEBUG] RUNNING_TASKS state during exception:")
+            logger.error(f"🔴 [DEBUG]   Keys: {list(RUNNING_TASKS.keys())}")
+            logger.error(f"🔴 [DEBUG]   Entry exists: {source_id_str in RUNNING_TASKS}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             # Re-raise to be caught by outer handler if needed
@@ -307,10 +324,17 @@ async def _scrape_via_subprocess(source_id: UUID):
     Returns the process object so it can be tracked and cancelled.
     """
     source_id_str = str(source_id)
-    logger.info(f"🚀 Starting Air Cargo Week subprocess scraping for source: {source_id_str}")
+    logger.info(f"🟢 [DEBUG] _scrape_via_subprocess START for {source_id_str}")
+    logger.info(f"🟢 [DEBUG] Function called with source_id: {source_id} (type: {type(source_id)})")
+    logger.info(f"🟢 [DEBUG] source_id_str: {source_id_str}")
+    logger.info(f"🟢 [DEBUG] Current RUNNING_TASKS state:")
+    logger.info(f"🟢 [DEBUG]   Keys: {list(RUNNING_TASKS.keys())}")
+    logger.info(f"🟢 [DEBUG]   Entry exists: {source_id_str in RUNNING_TASKS}")
+    logger.info(f"🟢 [DEBUG]   Full RUNNING_TASKS: {RUNNING_TASKS}")
     
     # CRITICAL: Ensure RUNNING_TASKS entry exists at the very start
     # This prevents any KeyError from happening later
+    logger.info(f"🟢 [DEBUG] Checking if RUNNING_TASKS entry exists...")
     if source_id_str not in RUNNING_TASKS:
         logger.warning(f"⚠️  RUNNING_TASKS entry missing at start of _scrape_via_subprocess for {source_id_str}")
         logger.warning(f"   Current RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
@@ -452,13 +476,33 @@ async def _scrape_via_subprocess(source_id: UUID):
             raise RuntimeError(f"RUNNING_TASKS entry for {source_id_str} still missing after creation attempt")
         
         # Safely store the process
+        logger.info(f"🟢 [DEBUG] About to store process in RUNNING_TASKS")
+        logger.info(f"🟢 [DEBUG]   source_id_str: {source_id_str}")
+        logger.info(f"🟢 [DEBUG]   RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
+        logger.info(f"🟢 [DEBUG]   Entry exists: {source_id_str in RUNNING_TASKS}")
+        if source_id_str in RUNNING_TASKS:
+            logger.info(f"🟢 [DEBUG]   Entry content before storing: {RUNNING_TASKS[source_id_str]}")
+        
         try:
+            logger.info(f"🟢 [DEBUG] Attempting: RUNNING_TASKS['{source_id_str}']['process'] = process")
             RUNNING_TASKS[source_id_str]["process"] = process
             logger.info(f"✅ Successfully stored process in RUNNING_TASKS for {source_id_str}")
+            logger.info(f"🟢 [DEBUG] Entry content after storing: {RUNNING_TASKS[source_id_str]}")
         except KeyError as ke:
-            logger.error(f"❌ KeyError when storing process: {str(ke)}")
-            logger.error(f"   RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
-            logger.error(f"   Looking for: {source_id_str}")
+            logger.error(f"🔴 [DEBUG] KeyError caught when storing process!")
+            logger.error(f"🔴 [DEBUG]   KeyError message: {str(ke)}")
+            logger.error(f"🔴 [DEBUG]   KeyError args: {ke.args}")
+            logger.error(f"🔴 [DEBUG]   source_id_str: '{source_id_str}'")
+            logger.error(f"🔴 [DEBUG]   source_id_str type: {type(source_id_str)}")
+            logger.error(f"🔴 [DEBUG]   source_id_str repr: {repr(source_id_str)}")
+            logger.error(f"🔴 [DEBUG]   RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
+            logger.error(f"🔴 [DEBUG]   RUNNING_TASKS keys types: {[type(k).__name__ for k in RUNNING_TASKS.keys()]}")
+            logger.error(f"🔴 [DEBUG]   RUNNING_TASKS keys reprs: {[repr(k) for k in RUNNING_TASKS.keys()]}")
+            logger.error(f"🔴 [DEBUG]   Looking for: '{source_id_str}'")
+            logger.error(f"🔴 [DEBUG]   Key match check: {[k == source_id_str for k in RUNNING_TASKS.keys()]}")
+            logger.error(f"🔴 [DEBUG]   Full RUNNING_TASKS dict: {RUNNING_TASKS}")
+            import traceback
+            logger.error(f"🔴 [DEBUG]   Traceback:\n{traceback.format_exc()}")
             raise
         
         # Wait for completion with timeout (30 minutes)
@@ -534,10 +578,25 @@ async def _scrape_via_subprocess(source_id: UUID):
         import traceback
         full_traceback = traceback.format_exc()
         
+        logger.error(f"🔴 [DEBUG] ========== EXCEPTION CAUGHT IN _scrape_via_subprocess ==========")
         logger.error(f"❌ Error running subprocess for Air Cargo Week (source: {source_id_str})")
-        logger.error(f"   Error type: {error_type}")
-        logger.error(f"   Error message: {error_details}")
-        logger.error(f"   Full traceback:\n{full_traceback}")
+        logger.error(f"🔴 [DEBUG]   Error type: {error_type}")
+        logger.error(f"🔴 [DEBUG]   Error message: {error_details}")
+        logger.error(f"🔴 [DEBUG]   Error args: {e.args if hasattr(e, 'args') else 'N/A'}")
+        logger.error(f"🔴 [DEBUG]   source_id_str: '{source_id_str}'")
+        logger.error(f"🔴 [DEBUG]   source_id_str type: {type(source_id_str)}")
+        logger.error(f"🔴 [DEBUG]   Current RUNNING_TASKS state:")
+        logger.error(f"🔴 [DEBUG]     Keys: {list(RUNNING_TASKS.keys())}")
+        logger.error(f"🔴 [DEBUG]     Entry exists: {source_id_str in RUNNING_TASKS}")
+        logger.error(f"🔴 [DEBUG]     Full RUNNING_TASKS: {RUNNING_TASKS}")
+        if isinstance(e, KeyError):
+            logger.error(f"🔴 [DEBUG]   KeyError details:")
+            logger.error(f"🔴 [DEBUG]     Missing key: {e.args[0] if e.args else 'Unknown'}")
+            logger.error(f"🔴 [DEBUG]     Key type: {type(e.args[0]).__name__ if e.args else 'N/A'}")
+            logger.error(f"🔴 [DEBUG]     Key repr: {repr(e.args[0]) if e.args else 'N/A'}")
+            logger.error(f"🔴 [DEBUG]     Comparing with source_id_str: {e.args[0] == source_id_str if e.args else 'N/A'}")
+        logger.error(f"🔴 [DEBUG]   Full traceback:\n{full_traceback}")
+        logger.error(f"🔴 [DEBUG] =================================================================")
         
         # Log the error with detailed message
         try:
