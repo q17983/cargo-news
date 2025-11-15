@@ -355,21 +355,33 @@ async def _scrape_via_subprocess(source_id: UUID):
             )
             
             if process.returncode == 0:
-                logger.info(f"Air Cargo Week scraping completed successfully")
+                logger.info(f"✅ Air Cargo Week scraping completed successfully")
+                # Also decode stdout to see script output
+                if stdout:
+                    stdout_text = stdout.decode('utf-8', errors='ignore')
+                    logger.info(f"Script output (last 500 chars): {stdout_text[-500:]}")
             else:
-                error_output = stderr.decode() if stderr else "Unknown error"
-                logger.error(f"Air Cargo Week scraping failed with return code {process.returncode}")
-                logger.error(f"Error output: {error_output[:500]}")
+                error_output = stderr.decode('utf-8', errors='ignore') if stderr else "Unknown error"
+                stdout_output = stdout.decode('utf-8', errors='ignore') if stdout else ""
                 
-                # Log the failure
-                source = db.get_source(source_id)
-                log = ScrapingLogCreate(
-                    source_id=source_id,
-                    status='failed',
-                    error_message=f"Subprocess failed: {error_output[:200]}",
-                    articles_found=0
-                )
-                db.create_scraping_log(log)
+                logger.error(f"❌ Air Cargo Week scraping failed with return code {process.returncode}")
+                logger.error(f"   Stderr: {error_output[:1000]}")
+                if stdout_output:
+                    logger.error(f"   Stdout: {stdout_output[-500:]}")
+                
+                # Log the failure with more details
+                try:
+                    source = db.get_source(source_id)
+                    error_message = f"Subprocess failed (exit code {process.returncode}): {error_output[:300]}"
+                    log = ScrapingLogCreate(
+                        source_id=source_id,
+                        status='failed',
+                        error_message=error_message,
+                        articles_found=0
+                    )
+                    db.create_scraping_log(log)
+                except Exception as log_error:
+                    logger.error(f"❌ Failed to log subprocess failure: {str(log_error)}")
         
         except asyncio.TimeoutError:
             logger.error(f"⚠️  Air Cargo Week scraping timed out after 30 minutes")
