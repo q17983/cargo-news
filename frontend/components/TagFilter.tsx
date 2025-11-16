@@ -5,7 +5,9 @@ import { useState, useMemo } from 'react';
 interface TagFilterProps {
   tags: string[];
   selectedTags: string[];
+  favoriteTags?: string[];
   onTagToggle: (tag: string) => void;
+  onFavoriteToggle?: (tag: string) => void;
 }
 
 // Define tag categories based on the Gemini prompt structure
@@ -160,7 +162,7 @@ const isMainTopic = (tag: string): boolean => {
   return topics.some(topic => tagLower.includes(topic));
 };
 
-export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilterProps) {
+export default function TagFilter({ tags, selectedTags, favoriteTags = [], onTagToggle, onFavoriteToggle }: TagFilterProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'categories' | 'search'>('categories');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['主要主題']));
@@ -337,18 +339,38 @@ export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilter
                   <div className="p-2 space-y-1 max-h-48 overflow-y-auto">
                     {categoryTags.map((tag) => {
                       const isSelected = selectedTags.includes(tag);
+                      const isFavorite = favoriteTags.includes(tag);
                       return (
-                        <button
-                          key={tag}
-                          onClick={() => onTagToggle(tag)}
-                          className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
-                            isSelected
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {tag}
-                        </button>
+                        <div key={tag} className="flex items-center gap-1 group">
+                          <button
+                            onClick={() => onTagToggle(tag)}
+                            className={`flex-1 text-left px-2 py-1 rounded text-xs transition-colors ${
+                              isSelected
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                          {onFavoriteToggle && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onFavoriteToggle(tag);
+                              }}
+                              className={`p-1 rounded transition-colors ${
+                                isFavorite
+                                  ? 'text-yellow-500 hover:text-yellow-600'
+                                  : 'text-gray-400 hover:text-yellow-500 opacity-0 group-hover:opacity-100'
+                              }`}
+                              aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                            >
+                              <svg className="w-4 h-4" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -376,18 +398,38 @@ export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilter
             ) : (
               filteredTags.map((tag) => {
                 const isSelected = selectedTags.includes(tag);
+                const isFavorite = favoriteTags.includes(tag);
                 return (
-                  <button
-                    key={tag}
-                    onClick={() => onTagToggle(tag)}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                      isSelected
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {tag}
-                  </button>
+                  <div key={tag} className="flex items-center gap-1 group">
+                    <button
+                      onClick={() => onTagToggle(tag)}
+                      className={`flex-1 text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                        isSelected
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                    {onFavoriteToggle && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onFavoriteToggle(tag);
+                        }}
+                        className={`p-1 rounded transition-colors ${
+                          isFavorite
+                            ? 'text-yellow-500 hover:text-yellow-600'
+                            : 'text-gray-400 hover:text-yellow-500 opacity-0 group-hover:opacity-100'
+                        }`}
+                        aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        <svg className="w-4 h-4" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 );
               })
             )}
@@ -400,18 +442,38 @@ export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilter
         <div className="space-y-1 max-h-[600px] overflow-y-auto">
           {tags.map((tag) => {
             const isSelected = selectedTags.includes(tag);
+            const isFavorite = favoriteTags.includes(tag);
             return (
-              <button
-                key={tag}
-                onClick={() => onTagToggle(tag)}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                  isSelected
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {tag}
-              </button>
+              <div key={tag} className="flex items-center gap-1 group">
+                <button
+                  onClick={() => onTagToggle(tag)}
+                  className={`flex-1 text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                    isSelected
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {tag}
+                </button>
+                {onFavoriteToggle && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFavoriteToggle(tag);
+                    }}
+                    className={`p-1 rounded transition-colors ${
+                      isFavorite
+                        ? 'text-yellow-500 hover:text-yellow-600'
+                        : 'text-gray-400 hover:text-yellow-500 opacity-0 group-hover:opacity-100'
+                    }`}
+                    aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <svg className="w-4 h-4" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>

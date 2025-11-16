@@ -13,8 +13,64 @@ export default function Home() {
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [favoriteTags, setFavoriteTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Load favorite tags from localStorage on mount
+  useEffect(() => {
+    const savedFavorites = localStorage.getItem('favoriteTags');
+    if (savedFavorites) {
+      try {
+        setFavoriteTags(JSON.parse(savedFavorites));
+      } catch (e) {
+        console.error('Failed to load favorite tags:', e);
+      }
+    }
+  }, []);
+
+  // Save favorite tags to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('favoriteTags', JSON.stringify(favoriteTags));
+  }, [favoriteTags]);
+
+  // Restore filter settings from sessionStorage on mount
+  useEffect(() => {
+    const savedSource = sessionStorage.getItem('selectedSource');
+    const savedTags = sessionStorage.getItem('selectedTags');
+    const savedScrollPosition = sessionStorage.getItem('articleListScrollPosition');
+    
+    if (savedSource && savedSource !== 'null') {
+      setSelectedSource(savedSource);
+    }
+    
+    if (savedTags) {
+      try {
+        const tags = JSON.parse(savedTags);
+        if (Array.isArray(tags) && tags.length > 0) {
+          setSelectedTags(tags);
+        }
+      } catch (e) {
+        console.error('Failed to load selected tags:', e);
+      }
+    }
+    
+    // Restore scroll position after articles are loaded
+    if (savedScrollPosition && !loading) {
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(savedScrollPosition, 10));
+      }, 200);
+    }
+  }, [loading]);
+
+  // Save filter settings to sessionStorage whenever they change
+  useEffect(() => {
+    sessionStorage.setItem('selectedSource', selectedSource || 'null');
+  }, [selectedSource]);
+
+  useEffect(() => {
+    sessionStorage.setItem('selectedTags', JSON.stringify(selectedTags));
+  }, [selectedTags]);
 
   // Restore scroll position on mount
   useEffect(() => {
@@ -313,38 +369,77 @@ export default function Home() {
       </header>
 
       <main className="pb-4">
-        {/* Source Filter Tabs - Mobile Optimized */}
-        <div className="sticky top-14 z-40 bg-white border-b border-gray-200 px-4 py-3 overflow-x-auto">
-          <div className="flex items-center gap-2 min-w-max">
-            <button
-              onClick={() => setSelectedSource(null)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                selectedSource === null
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 active:bg-gray-200'
-              }`}
-            >
-              全部 ({allArticles.length})
-            </button>
-            {availableSources.map((sourceName) => {
-              const count = allArticles.filter(
-                a => a.source?.name === sourceName || a.source?.domain === sourceName
-              ).length;
-              return (
-                <button
-                  key={sourceName}
-                  onClick={() => setSelectedSource(sourceName)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                    selectedSource === sourceName
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 active:bg-gray-200'
-                  }`}
-                >
-                  {sourceName} ({count})
-                </button>
-              );
-            })}
+        {/* Source Filter Tabs + Favorite Tags - Mobile Optimized */}
+        <div className="sticky top-14 z-40 bg-white border-b border-gray-200">
+          {/* Source Tabs */}
+          <div className="px-4 py-3 overflow-x-auto border-b border-gray-100">
+            <div className="flex items-center gap-2 min-w-max">
+              <button
+                onClick={() => setSelectedSource(null)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  selectedSource === null
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+                }`}
+              >
+                全部 ({allArticles.length})
+              </button>
+              {availableSources.map((sourceName) => {
+                const count = allArticles.filter(
+                  a => a.source?.name === sourceName || a.source?.domain === sourceName
+                ).length;
+                return (
+                  <button
+                    key={sourceName}
+                    onClick={() => setSelectedSource(sourceName)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                      selectedSource === sourceName
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+                    }`}
+                  >
+                    {sourceName} ({count})
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Favorite Tags Quick Filter */}
+          {favoriteTags.length > 0 && (
+            <div className="px-4 py-2 overflow-x-auto bg-blue-50/50">
+              <div className="flex items-center gap-2 min-w-max">
+                <span className="text-xs font-medium text-gray-600 whitespace-nowrap">常用標籤:</span>
+                {favoriteTags.map((tag) => {
+                  const isSelected = selectedTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedTags(prev => prev.filter(t => t !== tag));
+                        } else {
+                          setSelectedTags(prev => [...prev, tag]);
+                        }
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+                        isSelected
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 active:bg-gray-100'
+                      }`}
+                    >
+                      {tag}
+                      {isSelected && (
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Tag Filter - Mobile Drawer Style */}
@@ -453,8 +548,16 @@ export default function Home() {
               <TagFilter
                 tags={tags}
                 selectedTags={selectedTags}
+                favoriteTags={favoriteTags}
                 onTagToggle={(tag) => {
                   setSelectedTags(prev =>
+                    prev.includes(tag)
+                      ? prev.filter(t => t !== tag)
+                      : [...prev, tag]
+                  );
+                }}
+                onFavoriteToggle={(tag) => {
+                  setFavoriteTags(prev =>
                     prev.includes(tag)
                       ? prev.filter(t => t !== tag)
                       : [...prev, tag]
@@ -470,8 +573,16 @@ export default function Home() {
           <TagFilter
             tags={tags}
             selectedTags={selectedTags}
+            favoriteTags={favoriteTags}
             onTagToggle={(tag) => {
               setSelectedTags(prev =>
+                prev.includes(tag)
+                  ? prev.filter(t => t !== tag)
+                  : [...prev, tag]
+              );
+            }}
+            onFavoriteToggle={(tag) => {
+              setFavoriteTags(prev =>
                 prev.includes(tag)
                   ? prev.filter(t => t !== tag)
                   : [...prev, tag]

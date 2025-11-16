@@ -215,6 +215,8 @@ export default function ArticleDetailPage() {
   };
 
   const navigateToArticle = (articleId: string) => {
+    // Save scroll position before navigating
+    sessionStorage.setItem('articleListScrollPosition', window.scrollY.toString());
     router.push(`/articles/${articleId}`);
   };
 
@@ -338,6 +340,10 @@ export default function ArticleDetailPage() {
           <div className="flex items-center gap-3">
             <Link 
               href="/" 
+              onClick={() => {
+                // Save scroll position before going back
+                sessionStorage.setItem('articleListScrollPosition', window.scrollY.toString());
+              }}
               className="p-2 -ml-2 rounded-full active:bg-gray-100 transition-colors"
               aria-label="Back to articles"
             >
