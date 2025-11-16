@@ -11,48 +11,106 @@ interface TagFilterProps {
 // Define tag categories based on the Gemini prompt structure
 const TAG_CATEGORIES = {
   '主要主題': [
-    '市場分析', 'Market Analysis', '市場', '分析',
-    '公司動態', 'Company News', '公司', '動態',
-    '機場與基礎設施', 'Airports & Infrastructure', '機場', '基礎設施', 'Infrastructure',
-    '數位與科技', 'Digital & Tech', '數位', '科技', 'Digital', 'Tech',
-    '永續發展', 'Sustainability', '永續', 'SAF',
-    '特殊貨物', 'Special Cargo', '特殊', '冷鏈', 'Cold Chain',
-    '法規與安全', 'Regulation & Security', '法規', '安全', 'Security',
-    '人事任命', 'People & Appointments', '人事', '任命',
+    // Market & Analysis
+    '市場分析', 'Market Analysis', '市場', '分析', '貨量報告', '市場預測', '貿易數據',
+    // Company News
+    '公司動態', 'Company News', '公司', '動態', '併購', '收購', '財務報告', '策略調整',
+    // Infrastructure (but NOT airports - those go to 公司/機場)
+    '基礎設施', 'Infrastructure', '物流基礎設施',
+    // Digital & Tech
+    '數位與科技', 'Digital & Tech', '數位', '科技', 'Digital', 'Tech', '數位化', '數位工具', '數位科技', '數位行銷', '數位轉型',
+    '人工智慧', 'AI', '自動化', '物聯網', '電子商務', 'e-commerce',
+    // Sustainability
+    '永續發展', 'Sustainability', '永續', 'SAF', '減碳', '碳排放', '環保措施', '脫碳',
+    // Special Cargo
+    '特殊貨物', 'Special Cargo', '特殊', '冷鏈', 'Cold Chain', '冷鏈物流', '醫藥冷鏈', '溫控運輸',
+    '活體動物', '危險品', '貴重物品', '醫療貨物', '花卉產業',
+    // Regulation & Security
+    '法規與安全', 'Regulation & Security', '法規', '安全', 'Security', '航空安全', '飛行安全', '跑道安全', '網路安全',
+    '海關', '清關', '海關清關', '貿易協定', '貿易戰', '關稅',
+    // People & Appointments
+    '人事任命', 'People & Appointments', '人事', '任命', '領導層變更', '領導變革',
+    // Other topics
+    '供應鏈', 'Supply Chain', '物流', '貨運', '空運', '運費率', '運力', '貨運量', '貨運量增長',
+    '機隊', '機隊擴張', '機隊更新', '機隊管理', '機隊規劃', '貨機', '貨機改裝', '飛機改裝',
+    '投資', 'IPO', '首次公開募股', '合作夥伴', '戰略合作', '服務創新',
   ],
   '地理區域': [
-    '亞洲', 'Asia', 'Asian',
+    '亞洲', 'Asia', 'Asian', '亞太地區', 'Asia Pacific', 'APAC',
     '歐洲', 'Europe', 'European',
-    '北美', 'North America', 'North American',
-    '中東', 'Middle East',
-    '亞太地區', 'Asia Pacific', 'APAC',
-    '跨太平洋', 'Trans-Pacific',
-    '大西洋', 'Atlantic',
-    '亞歐貿易', 'Asia-Europe',
+    '北美', 'North America', 'North American', '美國', '美國市場', '加拿大',
+    '中東', 'Middle East', '中東',
+    '跨太平洋', 'Trans-Pacific', '跨大西洋', 'Trans-Atlantic', '大西洋', 'Atlantic',
+    '亞歐貿易', 'Asia-Europe', '亞歐航線', '亞洲-歐洲', '亞洲內部',
+    '南美', 'Latin America', '拉丁美洲', '非洲', 'Africa', '澳洲', 'Australia',
+    '中國', '印度', '印度', '新加坡', '香港', '台灣', '韓國', '日本', '泰國', '馬來西亞',
+    '英國', '德國', '法國', '瑞士', '波蘭', '土耳其', '埃及', '巴西', '墨西哥', '智利',
+    '東南亞', '加勒比地區', '太平洋航線',
   ],
   '公司/機場': [
-    // Airlines
-    'FedEx', 'DHL', 'Lufthansa', 'IAG Cargo', 'Cathay Pacific', 'Singapore Airlines',
+    // Major Airlines
+    'FedEx', 'DHL', 'UPS', 'Lufthansa', 'IAG Cargo', 'Cathay Pacific', 'Singapore Airlines',
     'Emirates', 'Qatar Airways', 'British Airways', 'Air France', 'KLM', 'Turkish Airlines',
     'Korean Air', 'Japan Airlines', 'ANA', 'China Airlines', 'EVA Air', 'Thai Airways',
     'Air China', 'China Southern', 'China Eastern', 'United Airlines', 'American Airlines',
-    'Delta Air Lines', 'UPS', 'Atlas Air', 'Kalitta Air', 'Cargolux', 'AirBridgeCargo',
+    'Delta Air Lines', 'Atlas Air', 'Kalitta Air', 'Cargolux', 'AirBridgeCargo',
     'Volga-Dnepr', 'Nippon Cargo', 'Polar Air Cargo', 'Southern Air', 'Western Global',
-    // Airports
+    // Additional Airlines (from "其他" category)
+    'Airbus', 'Boeing', 'Amazon Air', 'Avianca', 'IndiGo', 'Iberia', 'Etihad', 'Etihad Airways',
+    'Etihad Cargo', 'Royal Air Maroc', 'Royal Brunei', 'Kenya Airways', 'LOT Polish',
+    'ITA Airways', 'Sun Country', 'WestJet', 'Cargojet', 'Central Airlines', 'Hungary Airlines',
+    'Air Astana', 'Air Atlanta', 'Air Canada', 'Air Menzies', 'Ascend Airways', 'Astral Aviation',
+    'Challenge Group', 'Magma Aviation', 'Mammoth Freighters', 'MNG Airlines', 'Swiftair',
+    'One Air', 'Skye Air', 'Riyadh Air', 'Aerion', 'Eve Air Mobility', 'ZeroAvia',
+    // Airports (English)
     'Heathrow', 'JFK', 'LAX', 'CDG', 'Frankfurt', 'Amsterdam', 'Dubai', 'Singapore Changi',
     'Hong Kong International', 'Narita', 'Haneda', 'Incheon', 'Miami', 'Chicago O\'Hare',
     'Atlanta', 'Dallas', 'Memphis', 'Louisville', 'Anchorage', 'Liege', 'Luxembourg',
-    'Hong Kong', 'Singapore', 'Tokyo', 'Seoul', 'Shanghai', 'Beijing', 'Guangzhou',
-    'Airport', 'International Airport',
+    'Billund', 'Glasgow Prestwick', 'Halifax Stanfield', 'Hamilton', 'Salt Lake City',
+    'Brussels Airport', 'Liege Airport', 'Gatwick', 'Luton',
+    // Airports (Chinese) - MUST check these BEFORE topic keywords
+    '上海浦東國際機場', '香港國際機場', '新加坡樟宜機場', '仁川國際機場', '廣州白雲國際機場',
+    '廣州白雲機場', '深圳寶安國際機場', '北京首都', '成都', '重慶', '西安', '杭州', '南京',
+    '法蘭克福機場', '希斯洛機場', '杜拜國際機場', '迪拜國際機場', '阿布達比國際機場',
+    '阿布達比機場', '曼谷國際機場', '金邊國際機場', '馬尼拉國際機場', '雪梨機場',
+    '維也納國際機場', '哥本哈根機場', '慕尼黑機場', '列日機場', '史基浦機場',
+    '布魯塞爾機場', '東米德蘭機場', '格拉斯哥普雷斯蒂克機場', '哈利法克斯國際機場',
+    '多倫多皮爾遜國際機場', '芝加哥歐海爾國際機場', '芝加哥羅克福德國際機場',
+    '路易斯維爾國際機場', '路易斯維爾穆罕默德·阿里國際機場', '邁阿密國際機場',
+    '鹽湖城國際機場', '鄂州花湖機場', '鄭州新鄭國際機場', '新千歲機場', '樟宜機場',
+    '什里波特機場', '伊斯坦堡機場', '阿拉特國際機場', '阿勒馬克圖姆國際機場',
+    '貨運機場', '機場', // Generic airport terms
     // Ground Handlers & Operators
-    'WFS', 'Swissport', 'Menzies', 'dnata', 'Celebi', 'SATS', 'Cargo', 'Ground',
-    'Handler', 'Handling', 'Services', 'Logistics',
-    // Forwarders
+    'WFS', 'Swissport', 'Menzies', 'Menzies Aviation', 'dnata', 'Celebi', 'SATS', 'SATS Ltd',
+    'HACTL', 'Hactl', '香港空運貨站', 'G2 Secure Staff', 'Aviator Airport Alliance',
+    'World Prime Services', 'AVS GSA', 'AVS GSA Services', 'ECS Group', 'GSA', 'GSSA',
+    // Forwarders & Logistics
     'Kuehne+Nagel', 'DB Schenker', 'DSV', 'Expeditors', 'Panalpina', 'CEVA', 'Geodis',
-    'Hellmann', 'Bolloré', 'Agility', 'Nippon Express', 'Yusen', 'Kerry Logistics',
-    'Forwarder', 'Forwarding',
-    // Other common patterns
-    'Cargo', 'Freight', 'Logistics', 'Supply Chain', 'Warehouse', 'Warehousing',
+    'Hellmann', 'Hellmann Worldwide', 'Bolloré', 'Agility', 'Nippon Express', 'Yusen',
+    'Kerry Logistics', 'Rhenus', 'Rhenus Group', 'Morrison Express', 'Aramex', 'B&H Worldwide',
+    'C.H. Robinson', 'Dimerco', 'Flexport', 'Alcott Global', 'OIA Global', 'XCF Global',
+    'Berli Jucker', 'Eastway Global', 'MBS Logistics', 'SAL Logistics', 'Logistics UK',
+    'U-Freight', 'U-Freight Group', 'Trans Global Projects', 'Nordisk', 'Ninatrans',
+    'EFM Global', 'Frontier Scientific', 'World Central Kitchen',
+    // Tech Platforms & Software
+    'CargoAi', 'WebCargo', 'Freightos', 'Cargo.one', 'iCargo', 'myCargo', 'EzyCargo',
+    'Amadeus', 'SITA', 'IBS Software', 'CHAMP Cargosystems', 'Nallian', 'FourKites',
+    'Trackonomy', 'PayCargo', 'TAC Index', 'Xeneta', 'WorldACD', 'WorldACD Market Data',
+    'Teleport', 'heyworld', 'reXtore',
+    // Other Companies
+    'Airforwarders Association', 'AfA', 'IATA', 'ICAO', 'TIACA', 'FIATA', 'BIFA', 'CILT UK',
+    'UKWA', 'BARIG', 'BGMEA', 'NYNJFFFBA', 'Pharma.Aero', 'CargoTech', 'FL Technics',
+    'Jeena & Company', 'Air Charter Service', 'Chapman Freeborn', 'Correios', 'Swiss Post',
+    'SF Express', '順豐', '順豐航空', '順豐速運', 'DP World', 'GXO', 'Talma',
+    'Unilode', 'Jettainer', 'ULD Care', 'Lödige Industries', 'LODDAutonomous',
+    'ProGlove', 'Thales', 'Leonardo', 'Rolls-Royce', 'Neste', 'Exolum',
+    'Hybrid Air Vehicles', 'Windracers', 'ST Engineering', 'Ontic Aerospace',
+    'Titan Aviation', 'FAI Aviation', 'FlyUs Aviation', 'Avia Solutions', 'Abra Group',
+    'TAM Group', 'CSC Group', 'ASR Cargo', 'CPK Airport', 'Fraport',
+    '中國南方航空', '中國國際貨運航空', '中國東方航空', '國泰航空', '國泰貨運',
+    '大韓航空', '日本航空', '泰國航空', '印度航空', '波蘭航空', '衣索比亞航空',
+    '阿聯酋航空', '阿提哈德航空', '阿提哈德航空貨運', '阿曼航空', '蘇南航空', '蘇爾納航空',
+    '北京首都航空', '加拿大航空 Transat',
   ],
 };
 
@@ -126,22 +184,54 @@ export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilter
     tags.forEach(tag => {
       let found = false;
       
-      // First, check against defined keywords (Chinese and English)
-      for (const [category, keywords] of Object.entries(TAG_CATEGORIES)) {
-        if (keywords.some(keyword => {
-          // Case-insensitive matching
+      // PRIORITY 1: Check 公司/機場 FIRST (to catch airports before they match "機場" in topics)
+      // This is critical because Chinese airport names contain "機場" which would match 主要主題
+      const companyKeywords = TAG_CATEGORIES['公司/機場'];
+      if (companyKeywords.some(keyword => {
+        const tagLower = tag.toLowerCase();
+        const keywordLower = keyword.toLowerCase();
+        // Exact match or contains (for partial matches like "Hong Kong" in "Hong Kong International Airport")
+        return tagLower === keywordLower || tagLower.includes(keywordLower) || keywordLower.includes(tagLower);
+      })) {
+        categorized['公司/機場'].push(tag);
+        found = true;
+      }
+      
+      // PRIORITY 2: Check 地理區域
+      if (!found) {
+        const regionKeywords = TAG_CATEGORIES['地理區域'];
+        if (regionKeywords.some(keyword => {
           const tagLower = tag.toLowerCase();
           const keywordLower = keyword.toLowerCase();
           return tagLower.includes(keywordLower) || tagLower === keywordLower;
         })) {
-          if (!categorized[category]) categorized[category] = [];
-          categorized[category].push(tag);
+          categorized['地理區域'].push(tag);
           found = true;
-          break;
         }
       }
       
-      // If not found, use pattern matching for English tags
+      // PRIORITY 3: Check 主要主題 (but exclude if it's an airport)
+      if (!found) {
+        // Skip if tag contains airport indicators
+        const tagLower = tag.toLowerCase();
+        const isAirport = tagLower.includes('airport') || 
+                         tagLower.includes('機場') || 
+                         tagLower.includes('國際機場') ||
+                         /^(jfk|lax|cdg|heathrow|narita|haneda|incheon|dubai|singapore|hong kong|tokyo|seoul|shanghai|beijing|guangzhou|miami|chicago|atlanta|dallas|memphis|louisville|anchorage|liege|luxembourg|brussels|gatwick|luton|billund|glasgow|halifax|hamilton|salt lake)/i.test(tag);
+        
+        if (!isAirport) {
+          const topicKeywords = TAG_CATEGORIES['主要主題'];
+          if (topicKeywords.some(keyword => {
+            const keywordLower = keyword.toLowerCase();
+            return tagLower.includes(keywordLower) || tagLower === keywordLower;
+          })) {
+            categorized['主要主題'].push(tag);
+            found = true;
+          }
+        }
+      }
+      
+      // PRIORITY 4: Pattern matching for unrecognized tags
       if (!found) {
         if (isCompanyAirportOperator(tag)) {
           categorized['公司/機場'].push(tag);
@@ -150,8 +240,13 @@ export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilter
           categorized['地理區域'].push(tag);
           found = true;
         } else if (isMainTopic(tag)) {
-          categorized['主要主題'].push(tag);
-          found = true;
+          // Double-check it's not an airport
+          const tagLower = tag.toLowerCase();
+          const isAirport = tagLower.includes('airport') || tagLower.includes('機場');
+          if (!isAirport) {
+            categorized['主要主題'].push(tag);
+            found = true;
+          }
         }
       }
       
