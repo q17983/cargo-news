@@ -11,37 +11,95 @@ interface TagFilterProps {
 // Define tag categories based on the Gemini prompt structure
 const TAG_CATEGORIES = {
   '主要主題': [
-    '市場分析',
-    '公司動態',
-    '機場與基礎設施',
-    '數位與科技',
-    '永續發展',
-    '特殊貨物',
-    '法規與安全',
-    '人事任命',
+    '市場分析', 'Market Analysis', '市場', '分析',
+    '公司動態', 'Company News', '公司', '動態',
+    '機場與基礎設施', 'Airports & Infrastructure', '機場', '基礎設施', 'Infrastructure',
+    '數位與科技', 'Digital & Tech', '數位', '科技', 'Digital', 'Tech',
+    '永續發展', 'Sustainability', '永續', 'SAF',
+    '特殊貨物', 'Special Cargo', '特殊', '冷鏈', 'Cold Chain',
+    '法規與安全', 'Regulation & Security', '法規', '安全', 'Security',
+    '人事任命', 'People & Appointments', '人事', '任命',
   ],
   '地理區域': [
-    '亞洲',
-    '歐洲',
-    '北美',
-    '中東',
-    '亞太地區',
-    '跨太平洋',
-    '大西洋',
-    '亞歐貿易',
+    '亞洲', 'Asia', 'Asian',
+    '歐洲', 'Europe', 'European',
+    '北美', 'North America', 'North American',
+    '中東', 'Middle East',
+    '亞太地區', 'Asia Pacific', 'APAC',
+    '跨太平洋', 'Trans-Pacific',
+    '大西洋', 'Atlantic',
+    '亞歐貿易', 'Asia-Europe',
   ],
   '公司/機場': [
-    'FedEx',
-    'DHL',
-    'Lufthansa',
-    'IAG Cargo',
-    'Cathay Pacific',
-    'Singapore Airlines',
-    'Emirates',
-    'Qatar Airways',
-    'WFS',
-    'Swissport',
+    // Airlines
+    'FedEx', 'DHL', 'Lufthansa', 'IAG Cargo', 'Cathay Pacific', 'Singapore Airlines',
+    'Emirates', 'Qatar Airways', 'British Airways', 'Air France', 'KLM', 'Turkish Airlines',
+    'Korean Air', 'Japan Airlines', 'ANA', 'China Airlines', 'EVA Air', 'Thai Airways',
+    'Air China', 'China Southern', 'China Eastern', 'United Airlines', 'American Airlines',
+    'Delta Air Lines', 'UPS', 'Atlas Air', 'Kalitta Air', 'Cargolux', 'AirBridgeCargo',
+    'Volga-Dnepr', 'Nippon Cargo', 'Polar Air Cargo', 'Southern Air', 'Western Global',
+    // Airports
+    'Heathrow', 'JFK', 'LAX', 'CDG', 'Frankfurt', 'Amsterdam', 'Dubai', 'Singapore Changi',
+    'Hong Kong International', 'Narita', 'Haneda', 'Incheon', 'Miami', 'Chicago O\'Hare',
+    'Atlanta', 'Dallas', 'Memphis', 'Louisville', 'Anchorage', 'Liege', 'Luxembourg',
+    'Hong Kong', 'Singapore', 'Tokyo', 'Seoul', 'Shanghai', 'Beijing', 'Guangzhou',
+    'Airport', 'International Airport',
+    // Ground Handlers & Operators
+    'WFS', 'Swissport', 'Menzies', 'dnata', 'Celebi', 'SATS', 'Cargo', 'Ground',
+    'Handler', 'Handling', 'Services', 'Logistics',
+    // Forwarders
+    'Kuehne+Nagel', 'DB Schenker', 'DSV', 'Expeditors', 'Panalpina', 'CEVA', 'Geodis',
+    'Hellmann', 'Bolloré', 'Agility', 'Nippon Express', 'Yusen', 'Kerry Logistics',
+    'Forwarder', 'Forwarding',
+    // Other common patterns
+    'Cargo', 'Freight', 'Logistics', 'Supply Chain', 'Warehouse', 'Warehousing',
   ],
+};
+
+// Helper function to detect if a tag is a company/airport/operator (English)
+const isCompanyAirportOperator = (tag: string): boolean => {
+  const tagLower = tag.toLowerCase();
+  
+  // Common company/airport patterns
+  const patterns = [
+    // Airlines (common suffixes)
+    /airlines?$/i, /airways?$/i, /air cargo$/i, /cargo$/i,
+    // Airports
+    /airport$/i, /international$/i, /heathrow$/i, /jfk$/i, /lax$/i,
+    // Companies (common words)
+    /^(fedex|dhl|ups|wfs|swissport|menzies|sats)/i,
+    // Ground handlers
+    /(handler|handling|services|logistics|forwarder|forwarding)$/i,
+    // Common company indicators
+    /\b(inc|llc|ltd|corp|group|holdings|aviation|airlines|airways)\b/i,
+  ];
+  
+  return patterns.some(pattern => pattern.test(tag));
+};
+
+// Helper function to detect if a tag is a geographic region (English)
+const isGeographicRegion = (tag: string): boolean => {
+  const tagLower = tag.toLowerCase();
+  const regions = [
+    'asia', 'europe', 'america', 'pacific', 'atlantic', 'middle east',
+    'north', 'south', 'east', 'west', 'africa', 'australia', 'oceania',
+    'trans-pacific', 'trans-atlantic', 'asia-pacific', 'apac', 'emea',
+  ];
+  
+  return regions.some(region => tagLower.includes(region));
+};
+
+// Helper function to detect if a tag is a main topic (English)
+const isMainTopic = (tag: string): boolean => {
+  const tagLower = tag.toLowerCase();
+  const topics = [
+    'market', 'analysis', 'company', 'news', 'airport', 'infrastructure',
+    'digital', 'tech', 'sustainability', 'saf', 'special', 'cargo',
+    'regulation', 'security', 'people', 'appointment', 'merger', 'acquisition',
+    'financial', 'strategy', 'e-commerce', 'cold chain', 'pharma',
+  ];
+  
+  return topics.some(topic => tagLower.includes(topic));
 };
 
 export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilterProps) {
@@ -56,7 +114,7 @@ export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilter
     return tags.filter(tag => tag.toLowerCase().includes(query));
   }, [tags, searchQuery]);
 
-  // Group tags by category
+  // Group tags by category - improved with English pattern matching
   const categorizedTags = useMemo(() => {
     const categorized: { [key: string]: string[] } = {
       '主要主題': [],
@@ -67,14 +125,37 @@ export default function TagFilter({ tags, selectedTags, onTagToggle }: TagFilter
 
     tags.forEach(tag => {
       let found = false;
+      
+      // First, check against defined keywords (Chinese and English)
       for (const [category, keywords] of Object.entries(TAG_CATEGORIES)) {
-        if (keywords.some(keyword => tag.includes(keyword))) {
+        if (keywords.some(keyword => {
+          // Case-insensitive matching
+          const tagLower = tag.toLowerCase();
+          const keywordLower = keyword.toLowerCase();
+          return tagLower.includes(keywordLower) || tagLower === keywordLower;
+        })) {
           if (!categorized[category]) categorized[category] = [];
           categorized[category].push(tag);
           found = true;
           break;
         }
       }
+      
+      // If not found, use pattern matching for English tags
+      if (!found) {
+        if (isCompanyAirportOperator(tag)) {
+          categorized['公司/機場'].push(tag);
+          found = true;
+        } else if (isGeographicRegion(tag)) {
+          categorized['地理區域'].push(tag);
+          found = true;
+        } else if (isMainTopic(tag)) {
+          categorized['主要主題'].push(tag);
+          found = true;
+        }
+      }
+      
+      // If still not found, put in "其他"
       if (!found) {
         categorized['其他'].push(tag);
       }

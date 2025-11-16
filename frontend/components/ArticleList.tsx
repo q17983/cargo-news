@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { useEffect, useRef } from 'react';
 
 interface Article {
   id: string;
@@ -24,6 +25,13 @@ interface ArticleListProps {
 }
 
 export default function ArticleList({ articles }: ArticleListProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Save scroll position when clicking an article
+  const handleArticleClick = () => {
+    sessionStorage.setItem('articleListScrollPosition', window.scrollY.toString());
+  };
+
   if (articles.length === 0) {
     return (
       <div className="text-center py-12">
@@ -34,11 +42,12 @@ export default function ArticleList({ articles }: ArticleListProps) {
 
   // Display articles in news app style (mobile-first)
   return (
-    <div className="space-y-3 py-4">
+    <div ref={listRef} className="space-y-3 py-4">
       {articles.map((article) => (
         <Link
           key={article.id}
           href={`/articles/${article.id}`}
+          onClick={handleArticleClick}
           className="block bg-white rounded-2xl p-4 active:bg-gray-50 transition-colors border border-gray-100"
           prefetch={true}
         >

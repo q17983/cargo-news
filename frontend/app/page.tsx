@@ -16,22 +16,54 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Restore scroll position on mount
   useEffect(() => {
-    // Load data with error handling
+    const savedScrollPosition = sessionStorage.getItem('articleListScrollPosition');
+    if (savedScrollPosition && !loading) {
+      // Restore scroll position after articles are loaded
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(savedScrollPosition, 10));
+      }, 100);
+    }
+  }, [loading]);
+
+  // Save scroll position before navigation
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem('articleListScrollPosition', window.scrollY.toString());
+    };
+    
+    const handleScroll = () => {
+      // Throttle scroll position saving
+      clearTimeout((window as any).scrollSaveTimeout);
+      (window as any).scrollSaveTimeout = setTimeout(() => {
+        sessionStorage.setItem('articleListScrollPosition', window.scrollY.toString());
+      }, 500);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Load data with error handling - optimized for speed
     const loadAll = async () => {
       try {
-        // Load sources first (needed for filtering)
-        await loadSources();
-        // Then load articles and tags in parallel
-        await Promise.all([
-          loadArticles().catch(err => {
-            console.error('Failed to load articles:', err);
-            setError(`Failed to load articles: ${err.message}`);
-          }),
-          loadTags().catch(err => {
-            console.error('Failed to load tags:', err);
-            // Tags are not critical, so we don't show error
-          })
+        // Load articles FIRST (most important) - show immediately
+        loadArticles().catch(err => {
+          console.error('Failed to load articles:', err);
+          setError(`Failed to load articles: ${err.message}`);
+        });
+        
+        // Load sources and tags in parallel (non-blocking)
+        Promise.all([
+          loadSources().catch(err => console.error('Failed to load sources:', err)),
+          loadTags().catch(err => console.error('Failed to load tags:', err))
         ]);
       } catch (err: any) {
         console.error('Failed to load initial data:', err);
@@ -64,8 +96,8 @@ export default function Home() {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const cachedData = JSON.parse(cached);
-        // Use cache if less than 2 minutes old
-        if (Date.now() - cachedData.timestamp < 2 * 60 * 1000) {
+        // Use cache if less than 5 minutes old (increased for better performance)
+        if (Date.now() - cachedData.timestamp < 5 * 60 * 1000) {
           setAllArticles(cachedData.data);
           setError(null);
           setLoading(false);
@@ -74,18 +106,68 @@ export default function Home() {
           const ids = cachedData.data.map((a: any) => a.id);
           sessionStorage.setItem('articleIds', JSON.stringify(ids));
           
-          // Load fresh data in background
+          // Load fresh data in background (non-blocking)
           loadArticlesInBackground();
           return;
         }
       }
       
-      // Fetch all articles (up to 1000 limit) - load in batches if needed
+      // OPTIMIZED: Load initial batch first (fast display), then load more in background
+      const initialBatchSize = 50; // Show first 50 articles quickly
+      
+      try {
+        const initialBatch = await fetchArticles({ 
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
+          limit: initialBatchSize,
+          offset: 0
+        });
+        
+        if (initialBatch.length > 0) {
+          // Sort initial batch
+          const sortedInitial = [...initialBatch].sort((a, b) => {
+            const dateA = a.published_date ? new Date(a.published_date).getTime() : new Date(a.created_at || a.scraped_at).getTime();
+            const dateB = b.published_date ? new Date(b.published_date).getTime() : new Date(b.created_at || b.scraped_at).getTime();
+            return dateB - dateA;
+          });
+          
+          // Show initial batch immediately
+          setAllArticles(sortedInitial);
+          setError(null);
+          setLoading(false);
+          
+          // Store article IDs
+          const ids = sortedInitial.map((a: any) => a.id);
+          sessionStorage.setItem('articleIds', JSON.stringify(ids));
+          
+          // Load remaining articles in background
+          loadRemainingArticles(initialBatchSize);
+        } else {
+          setAllArticles([]);
+          setLoading(false);
+        }
+      } catch (err: any) {
+        throw err;
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load articles');
+      setLoading(false);
+    }
+  };
+
+  // Load remaining articles in background
+  const loadRemainingArticles = async (startOffset: number) => {
+    try {
+      // Get current articles from state using a ref-like approach
       let allArticlesData: any[] = [];
-      let offset = 0;
-      const batchSize = 1000; // Increased to load more articles per batch
+      setAllArticles(currentArticles => {
+        allArticlesData = [...currentArticles];
+        return currentArticles; // Don't change state yet
+      });
+      
+      let offset = startOffset;
+      const batchSize = 200; // Load in larger batches
       let hasMore = true;
-      const maxBatches = 10; // Safety limit to prevent infinite loops
+      const maxBatches = 20;
       let batchCount = 0;
       
       while (hasMore && batchCount < maxBatches) {
@@ -103,46 +185,44 @@ export default function Home() {
             offset += batchSize;
             batchCount++;
             
-            // Stop if we got fewer articles than requested (last batch)
+            // Update state incrementally (better UX)
+            const sortedData = [...allArticlesData].sort((a, b) => {
+              const dateA = a.published_date ? new Date(a.published_date).getTime() : new Date(a.created_at || a.scraped_at).getTime();
+              const dateB = b.published_date ? new Date(b.published_date).getTime() : new Date(b.created_at || b.scraped_at).getTime();
+              return dateB - dateA;
+            });
+            
+            setAllArticles(sortedData);
+            
+            // Update article IDs
+            const ids = sortedData.map((a: any) => a.id);
+            sessionStorage.setItem('articleIds', JSON.stringify(ids));
+            
             if (batch.length < batchSize) {
               hasMore = false;
             }
           }
-        } catch (err: any) {
-          // If first batch fails, show error
-          if (batchCount === 0) {
-            throw err;
-          }
-          // If later batch fails, use what we have
+        } catch (err) {
           console.warn(`Failed to fetch batch at offset ${offset}:`, err);
           hasMore = false;
         }
       }
       
-      // Sort by published_date (newest first), fallback to created_at
-      const sortedData = [...allArticlesData].sort((a, b) => {
+      // Final cache update
+      const cacheKey = `articles_${selectedTags.join(',')}`;
+      const finalSorted = [...allArticlesData].sort((a, b) => {
         const dateA = a.published_date ? new Date(a.published_date).getTime() : new Date(a.created_at || a.scraped_at).getTime();
         const dateB = b.published_date ? new Date(b.published_date).getTime() : new Date(b.created_at || b.scraped_at).getTime();
-        return dateB - dateA; // Newest first
+        return dateB - dateA;
       });
       
-      setAllArticles(sortedData);
-      
-      // Cache the results
       sessionStorage.setItem(cacheKey, JSON.stringify({
-        data: sortedData,
+        data: finalSorted,
         timestamp: Date.now()
       }));
-      
-      // Store article IDs for navigation
-      const ids = sortedData.map((a: any) => a.id);
-      sessionStorage.setItem('articleIds', JSON.stringify(ids));
-      
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load articles');
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.warn('Failed to load remaining articles:', err);
+      // Silent fail - user already has initial batch
     }
   };
 
