@@ -32,6 +32,14 @@ export default function ArticleList({ articles }: ArticleListProps) {
     sessionStorage.setItem('articleListScrollPosition', window.scrollY.toString());
   };
 
+  // Force layout recalculation when articles change
+  useEffect(() => {
+    // Trigger a reflow to fix layout issues
+    if (listRef.current) {
+      void listRef.current.offsetHeight;
+    }
+  }, [articles]);
+
   if (articles.length === 0) {
     return (
       <div className="text-center py-12">
@@ -42,7 +50,7 @@ export default function ArticleList({ articles }: ArticleListProps) {
 
   // Display articles in news app style (mobile-first)
   return (
-    <div ref={listRef} className="space-y-3 py-4">
+    <div ref={listRef} key={articles.length} className="space-y-3 py-4">
       {articles.map((article) => (
         <Link
           key={article.id}

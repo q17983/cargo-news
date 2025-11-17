@@ -210,24 +210,24 @@ class SupabaseClient:
             if date_to:
                 query = query.lte('published_date', date_to.isoformat())
             
+            # Filter by tags BEFORE limit/offset (using PostgreSQL array overlap)
+            # This ensures we get all matching articles, not just first N
+            if tags:
+                # Use PostgreSQL array overlap operator - match ANY of the tags
+                # Supabase Python client uses .overlaps() for array overlap (ANY match)
+                # Convert tags list to match Supabase's expected format
+                query = query.overlaps('tags', tags)
+            
             # Order by published_date descending (newest first), fallback to created_at
             # Note: PostgreSQL NULLS LAST ensures articles with dates come first
             query = query.order('published_date', desc=True)
             query = query.order('created_at', desc=True)
             
-            # Apply limit and offset
+            # Apply limit and offset AFTER tag filtering
             query = query.range(offset, offset + limit - 1)
             
             response = query.execute()
             articles = [Article(**item) for item in response.data]
-            
-            # Filter by tags if provided (PostgreSQL array contains)
-            if tags:
-                filtered_articles = []
-                for article in articles:
-                    if any(tag in article.tags for tag in tags):
-                        filtered_articles.append(article)
-                articles = filtered_articles
             
             return articles
         except Exception as e:

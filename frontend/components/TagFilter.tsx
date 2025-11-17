@@ -10,42 +10,61 @@ interface TagFilterProps {
   onFavoriteToggle?: (tag: string) => void;
 }
 
-// Define tag categories based on the Gemini prompt structure
+// Define tag categories - FOCUSED for cargo brokers (Special Cargo & Charter priority)
 const TAG_CATEGORIES = {
-  '主要主題': [
-    // Market & Analysis
-    '市場分析', 'Market Analysis', '市場', '分析', '貨量報告', '市場預測', '貿易數據',
-    // Company News
-    '公司動態', 'Company News', '公司', '動態', '併購', '收購', '財務報告', '策略調整',
-    // Infrastructure (but NOT airports - those go to 公司/機場)
-    '基礎設施', 'Infrastructure', '物流基礎設施',
-    // Digital & Tech
-    '數位與科技', 'Digital & Tech', '數位', '科技', 'Digital', 'Tech', '數位化', '數位工具', '數位科技', '數位行銷', '數位轉型',
-    '人工智慧', 'AI', '自動化', '物聯網', '電子商務', 'e-commerce',
+  '特殊貨物與包機': [
+    // Special Cargo - HIGH PRIORITY for cargo brokers
+    '特殊貨物', 'Special Cargo', '冷鏈', 'Cold Chain', '冷鏈物流', '醫藥冷鏈', '溫控運輸',
+    '活體動物', '危險品', '貴重物品', '醫療貨物', '花卉產業', 'Pharma', 'Pharmaceutical',
+    'Perishable', 'Temperature Controlled', 'Live Animals', 'Dangerous Goods', 'Hazmat',
+    // Charter - HIGH PRIORITY for cargo brokers
+    '包機', 'Charter', '包機服務', 'Charter Service', 'ACMI', 'Wet Lease', 'Dry Lease',
+    'Cargo Charter', 'Freight Charter', '空運包機', '貨運包機',
+  ],
+  '市場分析': [
+    // Market & Analysis - ONLY specific analysis terms
+    '市場分析', 'Market Analysis', '貨量報告', '市場預測', '貿易數據', '運費率', '費率管理',
+    '收益率', '貨運量', '貨運量增長', '空運量', '運力', '運力限制', 'Market Data', 'Freight Rates',
+  ],
+  '公司動態': [
+    // Company News - ONLY specific company-related terms
+    '公司動態', 'Company News', '併購', '收購', '財務報告', '策略調整', '投資', 'IPO', '首次公開募股',
+    'Merger', 'Acquisition', 'Financial', 'Strategy', 'Investment',
+  ],
+  '機場與基礎設施': [
+    // Infrastructure - ONLY infrastructure terms (NOT generic logistics)
+    '機場與基礎設施', 'Airports & Infrastructure', '基礎設施', 'Infrastructure', '物流基礎設施',
+    '機場', '機場創新', '機場地面服務', '機場發展', '倉儲', 'Warehouse', 'Warehousing',
+  ],
+  '數位與科技': [
+    // Digital & Tech - ONLY tech-specific terms
+    '數位與科技', 'Digital & Tech', '數位化', '數位工具', '數位科技', '數位行銷', '數位轉型',
+    'Digital', 'Tech', '人工智慧', 'AI', '自動化', '物聯網', '電子商務', 'e-commerce',
+    'Automation', 'IoT', 'E-commerce', 'Platform', 'Software', 'System',
+  ],
+  '永續發展': [
     // Sustainability
     '永續發展', 'Sustainability', '永續', 'SAF', '減碳', '碳排放', '環保措施', '脫碳',
-    // Special Cargo
-    '特殊貨物', 'Special Cargo', '特殊', '冷鏈', 'Cold Chain', '冷鏈物流', '醫藥冷鏈', '溫控運輸',
-    '活體動物', '危險品', '貴重物品', '醫療貨物', '花卉產業',
+    'Carbon', 'Emissions', 'Green', 'ESG',
+  ],
+  '法規與安全': [
     // Regulation & Security
     '法規與安全', 'Regulation & Security', '法規', '安全', 'Security', '航空安全', '飛行安全', '跑道安全', '網路安全',
-    '海關', '清關', '海關清關', '貿易協定', '貿易戰', '關稅',
+    '海關', '清關', '海關清關', '貿易協定', '貿易戰', '關稅', 'Customs', 'Clearance', 'Regulation',
+  ],
+  '人事任命': [
     // People & Appointments
-    '人事任命', 'People & Appointments', '人事', '任命', '領導層變更', '領導變革',
-    // Other topics
-    '供應鏈', 'Supply Chain', '物流', '貨運', '空運', '運費率', '運力', '貨運量', '貨運量增長',
-    '機隊', '機隊擴張', '機隊更新', '機隊管理', '機隊規劃', '貨機', '貨機改裝', '飛機改裝',
-    '投資', 'IPO', '首次公開募股', '合作夥伴', '戰略合作', '服務創新',
+    '人事任命', 'People & Appointments', '人事', '任命', '領導層變更', '領導變革', 'Appointment', 'Leadership',
   ],
   '地理區域': [
     '亞洲', 'Asia', 'Asian', '亞太地區', 'Asia Pacific', 'APAC',
     '歐洲', 'Europe', 'European',
     '北美', 'North America', 'North American', '美國', '美國市場', '加拿大',
-    '中東', 'Middle East', '中東',
+    '中東', 'Middle East',
     '跨太平洋', 'Trans-Pacific', '跨大西洋', 'Trans-Atlantic', '大西洋', 'Atlantic',
     '亞歐貿易', 'Asia-Europe', '亞歐航線', '亞洲-歐洲', '亞洲內部',
     '南美', 'Latin America', '拉丁美洲', '非洲', 'Africa', '澳洲', 'Australia',
-    '中國', '印度', '印度', '新加坡', '香港', '台灣', '韓國', '日本', '泰國', '馬來西亞',
+    '中國', '印度', '新加坡', '香港', '台灣', '韓國', '日本', '泰國', '馬來西亞',
     '英國', '德國', '法國', '瑞士', '波蘭', '土耳其', '埃及', '巴西', '墨西哥', '智利',
     '東南亞', '加勒比地區', '太平洋航線',
   ],
@@ -174,10 +193,17 @@ export default function TagFilter({ tags, selectedTags, favoriteTags = [], onTag
     return tags.filter(tag => tag.toLowerCase().includes(query));
   }, [tags, searchQuery]);
 
-  // Group tags by category - improved with English pattern matching
+  // Group tags by category - STRICT matching for better categorization
   const categorizedTags = useMemo(() => {
     const categorized: { [key: string]: string[] } = {
-      '主要主題': [],
+      '特殊貨物與包機': [], // NEW: Priority category for cargo brokers
+      '市場分析': [],
+      '公司動態': [],
+      '機場與基礎設施': [],
+      '數位與科技': [],
+      '永續發展': [],
+      '法規與安全': [],
+      '人事任命': [],
       '地理區域': [],
       '公司/機場': [],
       '其他': [],
@@ -185,55 +211,75 @@ export default function TagFilter({ tags, selectedTags, favoriteTags = [], onTag
 
     tags.forEach(tag => {
       let found = false;
+      const tagLower = tag.toLowerCase();
       
-      // PRIORITY 1: Check 公司/機場 FIRST (to catch airports before they match "機場" in topics)
-      // This is critical because Chinese airport names contain "機場" which would match 主要主題
-      const companyKeywords = TAG_CATEGORIES['公司/機場'];
-      if (companyKeywords.some(keyword => {
-        const tagLower = tag.toLowerCase();
+      // PRIORITY 1: Check 特殊貨物與包機 FIRST (cargo broker priority)
+      const specialCargoKeywords = TAG_CATEGORIES['特殊貨物與包機'];
+      if (specialCargoKeywords.some(keyword => {
         const keywordLower = keyword.toLowerCase();
-        // Exact match or contains (for partial matches like "Hong Kong" in "Hong Kong International Airport")
+        // Exact match preferred, but allow contains for compound terms
         return tagLower === keywordLower || tagLower.includes(keywordLower) || keywordLower.includes(tagLower);
       })) {
-        categorized['公司/機場'].push(tag);
+        categorized['特殊貨物與包機'].push(tag);
         found = true;
       }
       
-      // PRIORITY 2: Check 地理區域
+      // PRIORITY 2: Check 公司/機場 (to catch airports before they match other categories)
+      if (!found) {
+        const companyKeywords = TAG_CATEGORIES['公司/機場'];
+        if (companyKeywords.some(keyword => {
+          const keywordLower = keyword.toLowerCase();
+          return tagLower === keywordLower || tagLower.includes(keywordLower) || keywordLower.includes(tagLower);
+        })) {
+          categorized['公司/機場'].push(tag);
+          found = true;
+        }
+      }
+      
+      // PRIORITY 3: Check 地理區域
       if (!found) {
         const regionKeywords = TAG_CATEGORIES['地理區域'];
         if (regionKeywords.some(keyword => {
-          const tagLower = tag.toLowerCase();
           const keywordLower = keyword.toLowerCase();
-          return tagLower.includes(keywordLower) || tagLower === keywordLower;
+          return tagLower === keywordLower || tagLower.includes(keywordLower);
         })) {
           categorized['地理區域'].push(tag);
           found = true;
         }
       }
       
-      // PRIORITY 3: Check 主要主題 (but exclude if it's an airport)
+      // PRIORITY 4: Check specific topic categories (STRICT - exact or very close match)
       if (!found) {
         // Skip if tag contains airport indicators
-        const tagLower = tag.toLowerCase();
         const isAirport = tagLower.includes('airport') || 
                          tagLower.includes('機場') || 
                          tagLower.includes('國際機場') ||
                          /^(jfk|lax|cdg|heathrow|narita|haneda|incheon|dubai|singapore|hong kong|tokyo|seoul|shanghai|beijing|guangzhou|miami|chicago|atlanta|dallas|memphis|louisville|anchorage|liege|luxembourg|brussels|gatwick|luton|billund|glasgow|halifax|hamilton|salt lake)/i.test(tag);
         
         if (!isAirport) {
-          const topicKeywords = TAG_CATEGORIES['主要主題'];
-          if (topicKeywords.some(keyword => {
-            const keywordLower = keyword.toLowerCase();
-            return tagLower.includes(keywordLower) || tagLower === keywordLower;
-          })) {
-            categorized['主要主題'].push(tag);
-            found = true;
+          // Check each topic category with STRICT matching
+          for (const [category, keywords] of Object.entries(TAG_CATEGORIES)) {
+            if (category === '公司/機場' || category === '地理區域' || category === '特殊貨物與包機') {
+              continue; // Already checked
+            }
+            
+            if (keywords.some(keyword => {
+              const keywordLower = keyword.toLowerCase();
+              // STRICT: Exact match or tag starts/ends with keyword (not just contains)
+              return tagLower === keywordLower || 
+                     tagLower.startsWith(keywordLower + ' ') ||
+                     tagLower.endsWith(' ' + keywordLower) ||
+                     tagLower.includes(' ' + keywordLower + ' ');
+            })) {
+              categorized[category].push(tag);
+              found = true;
+              break;
+            }
           }
         }
       }
       
-      // PRIORITY 4: Pattern matching for unrecognized tags
+      // PRIORITY 5: Pattern matching for unrecognized tags (fallback)
       if (!found) {
         if (isCompanyAirportOperator(tag)) {
           categorized['公司/機場'].push(tag);
@@ -241,14 +287,6 @@ export default function TagFilter({ tags, selectedTags, favoriteTags = [], onTag
         } else if (isGeographicRegion(tag)) {
           categorized['地理區域'].push(tag);
           found = true;
-        } else if (isMainTopic(tag)) {
-          // Double-check it's not an airport
-          const tagLower = tag.toLowerCase();
-          const isAirport = tagLower.includes('airport') || tagLower.includes('機場');
-          if (!isAirport) {
-            categorized['主要主題'].push(tag);
-            found = true;
-          }
         }
       }
       
