@@ -147,12 +147,14 @@ export default function Home() {
     try {
       setLoading(true);
       
-      // Check cache first (for faster loading)
-      const cacheKey = `articles_${selectedTags.join(',')}`;
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
+      // Check cache first (for faster loading) - use base cache key without tags
+      const baseCacheKey = 'articles_all';
+      const cached = sessionStorage.getItem(baseCacheKey);
+      
+      // If we have cached articles and no tags selected, use cache
+      if (cached && selectedTags.length === 0) {
         const cachedData = JSON.parse(cached);
-        // Use cache if less than 5 minutes old (increased for better performance)
+        // Use cache if less than 5 minutes old
         if (Date.now() - cachedData.timestamp < 5 * 60 * 1000) {
           setAllArticles(cachedData.data);
           setError(null);
@@ -168,35 +170,55 @@ export default function Home() {
         }
       }
       
-      // OPTIMIZED: Load initial batch first (fast display), then load more in background
-      const initialBatchSize = 50; // Show first 50 articles quickly
+      // OPTIMIZED: Load articles WITHOUT tag filter (faster, more reliable)
+      // We'll filter client-side for better performance
+      const initialBatchSize = selectedTags.length > 0 ? 300 : 50; // Load more if filtering
       
       try {
-        const initialBatch = await fetchArticles({ 
-          tags: selectedTags.length > 0 ? selectedTags : undefined,
+        // Fetch WITHOUT tag filter - much faster
+        const allArticlesData = await fetchArticles({ 
           limit: initialBatchSize,
           offset: 0
         });
         
-        if (initialBatch.length > 0) {
-          // Sort initial batch
-          const sortedInitial = [...initialBatch].sort((a, b) => {
+        if (allArticlesData.length > 0) {
+          // Sort articles
+          const sortedData = [...allArticlesData].sort((a, b) => {
             const dateA = a.published_date ? new Date(a.published_date).getTime() : new Date(a.created_at || a.scraped_at).getTime();
             const dateB = b.published_date ? new Date(b.published_date).getTime() : new Date(b.created_at || b.scraped_at).getTime();
             return dateB - dateA;
           });
           
-          // Show initial batch immediately
-          setAllArticles(sortedInitial);
+          // Filter by tags client-side (fast and reliable)
+          let filteredData = sortedData;
+          if (selectedTags.length > 0) {
+            filteredData = sortedData.filter(article => {
+              const articleTags = (article.tags || []).map((t: string) => t.toLowerCase());
+              const selectedTagsLower = selectedTags.map(t => t.toLowerCase());
+              // Check if article has ANY of the selected tags
+              return selectedTagsLower.some(tag => articleTags.includes(tag));
+            });
+          }
+          
+          // Show filtered results immediately
+          setAllArticles(filteredData);
           setError(null);
           setLoading(false);
           
           // Store article IDs
-          const ids = sortedInitial.map((a: any) => a.id);
+          const ids = filteredData.map((a: any) => a.id);
           sessionStorage.setItem('articleIds', JSON.stringify(ids));
           
-          // Load remaining articles in background
-          loadRemainingArticles(initialBatchSize);
+          // Cache all articles (without tag filter) for faster subsequent loads
+          sessionStorage.setItem(baseCacheKey, JSON.stringify({
+            data: sortedData,
+            timestamp: Date.now()
+          }));
+          
+          // Load remaining articles in background if needed
+          if (allArticlesData.length >= initialBatchSize) {
+            loadRemainingArticles(initialBatchSize);
+          }
         } else {
           setAllArticles([]);
           setLoading(false);
@@ -213,23 +235,23 @@ export default function Home() {
   // Load remaining articles in background
   const loadRemainingArticles = async (startOffset: number) => {
     try {
-      // Get current articles from state using a ref-like approach
+      // Get current articles from state
       let allArticlesData: any[] = [];
       setAllArticles(currentArticles => {
         allArticlesData = [...currentArticles];
-        return currentArticles; // Don't change state yet
+        return currentArticles;
       });
       
       let offset = startOffset;
-      const batchSize = 200; // Load in larger batches
+      const batchSize = 200;
       let hasMore = true;
       const maxBatches = 20;
       let batchCount = 0;
       
       while (hasMore && batchCount < maxBatches) {
         try {
+          // Fetch WITHOUT tag filter - filter client-side
           const batch = await fetchArticles({ 
-            tags: selectedTags.length > 0 ? selectedTags : undefined,
             limit: batchSize,
             offset: offset
           });
@@ -237,12 +259,23 @@ export default function Home() {
           if (batch.length === 0) {
             hasMore = false;
           } else {
+            // Add to all articles
             allArticlesData = [...allArticlesData, ...batch];
             offset += batchSize;
             batchCount++;
             
-            // Update state incrementally (better UX)
-            const sortedData = [...allArticlesData].sort((a, b) => {
+            // Filter by tags if needed
+            let filteredData = allArticlesData;
+            if (selectedTags.length > 0) {
+              filteredData = allArticlesData.filter(article => {
+                const articleTags = (article.tags || []).map((t: string) => t.toLowerCase());
+                const selectedTagsLower = selectedTags.map(t => t.toLowerCase());
+                return selectedTagsLower.some(tag => articleTags.includes(tag));
+              });
+            }
+            
+            // Sort and update state
+            const sortedData = [...filteredData].sort((a, b) => {
               const dateA = a.published_date ? new Date(a.published_date).getTime() : new Date(a.created_at || a.scraped_at).getTime();
               const dateB = b.published_date ? new Date(b.published_date).getTime() : new Date(b.created_at || b.scraped_at).getTime();
               return dateB - dateA;
@@ -254,6 +287,17 @@ export default function Home() {
             const ids = sortedData.map((a: any) => a.id);
             sessionStorage.setItem('articleIds', JSON.stringify(ids));
             
+            // Update base cache
+            const sortedAll = [...allArticlesData].sort((a, b) => {
+              const dateA = a.published_date ? new Date(a.published_date).getTime() : new Date(a.created_at || a.scraped_at).getTime();
+              const dateB = b.published_date ? new Date(b.published_date).getTime() : new Date(b.created_at || b.scraped_at).getTime();
+              return dateB - dateA;
+            });
+            sessionStorage.setItem('articles_all', JSON.stringify({
+              data: sortedAll,
+              timestamp: Date.now()
+            }));
+            
             if (batch.length < batchSize) {
               hasMore = false;
             }
@@ -263,22 +307,8 @@ export default function Home() {
           hasMore = false;
         }
       }
-      
-      // Final cache update
-      const cacheKey = `articles_${selectedTags.join(',')}`;
-      const finalSorted = [...allArticlesData].sort((a, b) => {
-        const dateA = a.published_date ? new Date(a.published_date).getTime() : new Date(a.created_at || a.scraped_at).getTime();
-        const dateB = b.published_date ? new Date(b.published_date).getTime() : new Date(b.created_at || b.scraped_at).getTime();
-        return dateB - dateA;
-      });
-      
-      sessionStorage.setItem(cacheKey, JSON.stringify({
-        data: finalSorted,
-        timestamp: Date.now()
-      }));
     } catch (err) {
       console.warn('Failed to load remaining articles:', err);
-      // Silent fail - user already has initial batch
     }
   };
 
