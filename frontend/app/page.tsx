@@ -146,33 +146,49 @@ export default function Home() {
   const loadArticles = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Check cache first (for faster loading) - use base cache key without tags
+      // Check cache first - ALWAYS use cache if available (even with tags)
       const baseCacheKey = 'articles_all';
       const cached = sessionStorage.getItem(baseCacheKey);
       
-      // If we have cached articles and no tags selected, use cache
-      if (cached && selectedTags.length === 0) {
-        const cachedData = JSON.parse(cached);
-        // Use cache if less than 5 minutes old
-        if (Date.now() - cachedData.timestamp < 5 * 60 * 1000) {
-          setAllArticles(cachedData.data);
-          setError(null);
-          setLoading(false);
-          
-          // Store article IDs for navigation
-          const ids = cachedData.data.map((a: any) => a.id);
-          sessionStorage.setItem('articleIds', JSON.stringify(ids));
-          
-          // Load fresh data in background (non-blocking)
-          loadArticlesInBackground();
-          return;
+      if (cached) {
+        try {
+          const cachedData = JSON.parse(cached);
+          // Use cache if less than 10 minutes old (increased for better UX)
+          if (Date.now() - cachedData.timestamp < 10 * 60 * 1000) {
+            let articlesToShow = cachedData.data;
+            
+            // Filter by tags client-side if tags are selected
+            if (selectedTags.length > 0) {
+              articlesToShow = cachedData.data.filter((article: any) => {
+                const articleTags = (article.tags || []).map((t: string) => t.toLowerCase());
+                const selectedTagsLower = selectedTags.map(t => t.toLowerCase());
+                return selectedTagsLower.some(tag => articleTags.includes(tag));
+              });
+            }
+            
+            // Show cached results IMMEDIATELY (instant)
+            setAllArticles(articlesToShow);
+            setError(null);
+            setLoading(false);
+            
+            // Store article IDs
+            const ids = articlesToShow.map((a: any) => a.id);
+            sessionStorage.setItem('articleIds', JSON.stringify(ids));
+            
+            // Load fresh data in background (non-blocking)
+            loadArticlesInBackground();
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to parse cache:', e);
+          // Continue to fetch fresh data
         }
       }
       
-      // OPTIMIZED: Load articles WITHOUT tag filter (faster, more reliable)
-      // We'll filter client-side for better performance
-      const initialBatchSize = selectedTags.length > 0 ? 300 : 50; // Load more if filtering
+      // If no cache, fetch fresh data
+      const initialBatchSize = 300; // Load enough articles for filtering
       
       try {
         // Fetch WITHOUT tag filter - much faster
@@ -181,53 +197,52 @@ export default function Home() {
           offset: 0
         });
         
-        if (allArticlesData.length > 0) {
-          // Sort articles
-          const sortedData = [...allArticlesData].sort((a, b) => {
-            const dateA = a.published_date ? new Date(a.published_date).getTime() : new Date(a.created_at || a.scraped_at).getTime();
-            const dateB = b.published_date ? new Date(b.published_date).getTime() : new Date(b.created_at || b.scraped_at).getTime();
-            return dateB - dateA;
+        // Sort articles
+        const sortedData = [...allArticlesData].sort((a, b) => {
+          const dateA = a.published_date ? new Date(a.published_date).getTime() : new Date(a.created_at || a.scraped_at).getTime();
+          const dateB = b.published_date ? new Date(b.published_date).getTime() : new Date(b.created_at || b.scraped_at).getTime();
+          return dateB - dateA;
+        });
+        
+        // Filter by tags client-side if tags are selected
+        let filteredData = sortedData;
+        if (selectedTags.length > 0) {
+          filteredData = sortedData.filter(article => {
+            const articleTags = (article.tags || []).map((t: string) => t.toLowerCase());
+            const selectedTagsLower = selectedTags.map(t => t.toLowerCase());
+            return selectedTagsLower.some(tag => articleTags.includes(tag));
           });
-          
-          // Filter by tags client-side (fast and reliable)
-          let filteredData = sortedData;
-          if (selectedTags.length > 0) {
-            filteredData = sortedData.filter(article => {
-              const articleTags = (article.tags || []).map((t: string) => t.toLowerCase());
-              const selectedTagsLower = selectedTags.map(t => t.toLowerCase());
-              // Check if article has ANY of the selected tags
-              return selectedTagsLower.some(tag => articleTags.includes(tag));
-            });
-          }
-          
-          // Show filtered results immediately
-          setAllArticles(filteredData);
-          setError(null);
-          setLoading(false);
-          
-          // Store article IDs
-          const ids = filteredData.map((a: any) => a.id);
-          sessionStorage.setItem('articleIds', JSON.stringify(ids));
-          
-          // Cache all articles (without tag filter) for faster subsequent loads
-          sessionStorage.setItem(baseCacheKey, JSON.stringify({
-            data: sortedData,
-            timestamp: Date.now()
-          }));
-          
-          // Load remaining articles in background if needed
-          if (allArticlesData.length >= initialBatchSize) {
-            loadRemainingArticles(initialBatchSize);
-          }
-        } else {
-          setAllArticles([]);
-          setLoading(false);
+        }
+        
+        // Show results immediately
+        setAllArticles(filteredData);
+        setError(null);
+        setLoading(false);
+        
+        // Store article IDs
+        const ids = filteredData.map((a: any) => a.id);
+        sessionStorage.setItem('articleIds', JSON.stringify(ids));
+        
+        // Cache all articles (without tag filter) for faster subsequent loads
+        sessionStorage.setItem(baseCacheKey, JSON.stringify({
+          data: sortedData,
+          timestamp: Date.now()
+        }));
+        
+        // Load remaining articles in background if needed
+        if (allArticlesData.length >= initialBatchSize) {
+          loadRemainingArticles(initialBatchSize);
         }
       } catch (err: any) {
-        throw err;
+        console.error('Error loading articles:', err);
+        setError(err.message || 'Failed to load articles');
+        setAllArticles([]);
+        setLoading(false);
       }
     } catch (err: any) {
+      console.error('Error in loadArticles:', err);
       setError(err.message || 'Failed to load articles');
+      setAllArticles([]);
       setLoading(false);
     }
   };
@@ -315,8 +330,8 @@ export default function Home() {
   // Load articles in background to refresh cache
   const loadArticlesInBackground = async () => {
     try {
+      // Fetch WITHOUT tag filter - we'll filter client-side
       const batch = await fetchArticles({ 
-        tags: selectedTags.length > 0 ? selectedTags : undefined,
         limit: 1000,
         offset: 0
       });
@@ -328,17 +343,32 @@ export default function Home() {
           return dateB - dateA;
         });
         
-        const cacheKey = `articles_${selectedTags.join(',')}`;
-        sessionStorage.setItem(cacheKey, JSON.stringify({
+        // Update base cache
+        sessionStorage.setItem('articles_all', JSON.stringify({
           data: sortedData,
           timestamp: Date.now()
         }));
         
-        const ids = sortedData.map((a: any) => a.id);
-        sessionStorage.setItem('articleIds', JSON.stringify(ids));
+        // Filter and update current articles if tags are selected
+        if (selectedTags.length > 0) {
+          const filteredData = sortedData.filter(article => {
+            const articleTags = (article.tags || []).map((t: string) => t.toLowerCase());
+            const selectedTagsLower = selectedTags.map(t => t.toLowerCase());
+            return selectedTagsLower.some(tag => articleTags.includes(tag));
+          });
+          
+          setAllArticles(filteredData);
+          const ids = filteredData.map((a: any) => a.id);
+          sessionStorage.setItem('articleIds', JSON.stringify(ids));
+        } else {
+          setAllArticles(sortedData);
+          const ids = sortedData.map((a: any) => a.id);
+          sessionStorage.setItem('articleIds', JSON.stringify(ids));
+        }
       }
     } catch (err) {
       // Silent fail for background refresh
+      console.warn('Background refresh failed:', err);
     }
   };
 
