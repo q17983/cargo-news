@@ -62,6 +62,25 @@ class AircargonewsScraper(BaseScraper):
             
             # Extract article links from current page
             page_urls = self._extract_article_urls_from_page(soup, current_url)
+
+            # Some anti-bot/cached variants return HTML without article links (HTTP 200).
+            # Retry with referer and then Playwright before giving up on this page.
+            if not page_urls:
+                logger.warning(
+                    f"No article links detected on page {current_page}, retrying fetch with referer"
+                )
+                soup_retry = self.fetch_page(current_url, referer=base_listing_url)
+                if soup_retry:
+                    page_urls = self._extract_article_urls_from_page(soup_retry, current_url)
+
+            if not page_urls:
+                logger.warning(
+                    f"Still no article links on page {current_page}, trying Playwright fallback"
+                )
+                soup_pw = self._fetch_with_playwright(current_url)
+                if soup_pw:
+                    page_urls = self._extract_article_urls_from_page(soup_pw, current_url)
+
             logger.info(f"Found {len(page_urls)} articles on page {current_page}")
             
             if not page_urls:

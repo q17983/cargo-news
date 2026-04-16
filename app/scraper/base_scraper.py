@@ -59,7 +59,9 @@ class BaseScraper:
             'User-Agent': random.choice(self.USER_AGENTS),
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
+            # Avoid `br` (Brotli) unless the runtime guarantees brotli decoding.
+            # If brotli isn't decoded, we may parse compressed bytes as HTML and get empty soup.
+            'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
             'Sec-Fetch-Dest': 'document',
