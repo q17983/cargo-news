@@ -2,12 +2,12 @@
 
 ## Current API Keys Configuration
 
-### Gemini API Key
-**Key**: `AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg`
+### OpenAI API Key
+**Key**: `YOUR_OPENAI_API_KEY_HERE` (⚠️ Never commit actual keys to Git!)
 
 **Where to Set:**
-- **Railway**: Backend Service → Variables → `GEMINI_API_KEY`
-- **Local Development**: `.env` file → `GEMINI_API_KEY`
+- **Railway**: Backend Service → Variables → `OPENAI_API_KEY`
+- **Local Development**: `.env` file → `OPENAI_API_KEY`
 
 **Last Updated**: 2025-11-15
 
@@ -21,9 +21,9 @@
 
 ### Step 2: Update Environment Variable
 1. Click on **"Variables"** tab
-2. Find `GEMINI_API_KEY` in the list
+2. Find `OPENAI_API_KEY` in the list
 3. Click on it to edit
-4. Update the value to: `AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg`
+4. Update the value to your actual API key (get it from https://aistudio.google.com/apikey)
 5. Click **"Save"**
 6. Railway will automatically redeploy the service
 
@@ -50,7 +50,7 @@
 ```
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
-GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
+OPENAI_API_KEY=your_actual_openai_api_key_here
 SCRAPING_DELAY_SECONDS=2
 MAX_RETRIES=3
 PORT=8000

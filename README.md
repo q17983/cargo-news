@@ -1,11 +1,11 @@
 # Cargo News Aggregator System
 
-A full-stack application that scrapes air cargo news websites, summarizes articles using Google Gemini API in Traditional Chinese, stores them in Supabase, and provides a web UI for source registration and article filtering by tags.
+A full-stack application that scrapes air cargo news websites, summarizes articles using OpenAI API in Traditional Chinese, stores them in Supabase, and provides a web UI for source registration and article filtering by tags.
 
 ## Features
 
 - Automated daily scraping of air cargo news websites at 00:00 UTC
-- AI-powered summarization in Traditional Chinese using Google Gemini API
+- AI-powered summarization in Traditional Chinese using OpenAI API
 - Intelligent tagging system for article categorization
 - Web UI for source management and article filtering
 - Supabase database for reliable data storage
@@ -16,7 +16,7 @@ A full-stack application that scrapes air cargo news websites, summarizes articl
 - **Frontend**: React/Next.js
 - **Database**: Supabase (PostgreSQL)
 - **Scraping**: BeautifulSoup4, requests, Selenium/Playwright
-- **AI**: Google Gemini API
+- **AI**: OpenAI API
 - **Scheduling**: APScheduler
 - **Deployment**: Railway
 

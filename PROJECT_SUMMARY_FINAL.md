@@ -6,7 +6,7 @@ A complete **Air Cargo News Aggregation System** that:
 
 ### ✅ Core Features
 1. **Web Scraping** - Automatically scrapes articles from air cargo news websites
-2. **AI Summarization** - Uses Google Gemini API to generate Traditional Chinese summaries
+2. **AI Summarization** - Uses OpenAI API to generate Traditional Chinese summaries
 3. **Tag Extraction** - Automatically extracts tags (companies, topics, geography) from articles
 4. **Database Storage** - Saves everything to Supabase (PostgreSQL)
 5. **Web Interface** - Beautiful React/Next.js frontend to view and filter articles
@@ -49,7 +49,7 @@ A complete **Air Cargo News Aggregation System** that:
 ┌────────▼────┐  ┌─▼────────────┐
 │  Scrapers   │  │  AI          │
 │             │  │  Summarizer  │
-│ - Base      │  │  (Gemini)    │
+│ - Base      │  │  (OpenAI)    │
 │ - Aircargo  │  │              │
 │   News      │  └──────────────┘
 │ - Aircargo  │
@@ -82,7 +82,7 @@ Cargo News/
 │   │   ├── aircargoweek_scraper.py
 │   │   └── scraper_factory.py   # Scraper selection
 │   ├── ai/
-│   │   └── summarizer.py        # Gemini AI integration
+│   │   └── summarizer.py        # OpenAI AI integration
 │   ├── database/
 │   │   ├── models.py            # Pydantic models
 │   │   └── supabase_client.py   # Database operations
@@ -113,7 +113,7 @@ Cargo News/
 - **Backend**: Python 3.x, FastAPI, Uvicorn
 - **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
 - **Database**: Supabase (PostgreSQL)
-- **AI**: Google Gemini API
+- **AI**: OpenAI API
 - **Scraping**: BeautifulSoup4, Playwright, Requests
 - **Scheduling**: APScheduler
 - **Deployment**: Railway (ready)
@@ -156,8 +156,8 @@ python3 scrape_aircargoweek.py --max-pages 3
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
 
-# Google Gemini
-GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
+# OpenAI
+OPENAI_API_KEY=your_actual_openai_api_key_here
 
 # Server
 PORT=8000

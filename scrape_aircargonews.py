@@ -3,7 +3,7 @@
 Complete scraping script for aircargonews.net
 This script will:
 1. Scrape articles from aircargonews.net
-2. Generate AI summaries using Gemini
+2. Generate AI summaries using OpenAI
 3. Save to Supabase database
 4. Can be viewed in the web interface
 

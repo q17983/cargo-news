@@ -10,7 +10,7 @@
    - If yes → Uses subprocess method (avoids Playwright threading issues)
 3. **Subprocess Execution:**
    - Runs `scrape_aircargoweek.py` as separate process
-   - Passes environment variables (GEMINI_API_KEY, SUPABASE_URL, etc.)
+   - Passes environment variables (OPENAI_API_KEY, SUPABASE_URL, etc.)
    - Runs with `--max-pages 5` (first-time scrape limit)
 4. **Scraping Process:**
    - Launches Playwright browser
@@ -19,7 +19,7 @@
    - Extracts article URLs
    - For each article:
      - Scrapes content
-     - Generates AI summary (Gemini API)
+     - Generates AI summary (OpenAI API)
      - Checks for duplicates
      - Saves to Supabase
 5. **Completion:**
@@ -237,7 +237,7 @@ curl -X POST https://web-production-1349.up.railway.app/api/scrape/stop-all
 ### Scraping Fails Immediately
 
 **Check:**
-1. **API Key:** Is Gemini API key valid?
+1. **API Key:** Is OpenAI API key valid?
 2. **Database:** Can backend connect to Supabase?
 3. **Network:** Is the source website accessible?
 4. **IP Block:** Is your IP blocked? (Check for 403 errors)

@@ -369,7 +369,7 @@ Supabase (cloud database)
 │     - scraper.scrape_article()                              │
 │     - summarizer.summarize()                                │
 │       → File: app/ai/summarizer.py                          │
-│       → Calls Google Gemini API                             │
+│       → Calls OpenAI API                             │
 │     - db.create_article()                                   │
 │       → File: app/database/supabase_client.py               │
 │       → Saves to Supabase                                   │

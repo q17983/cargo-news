@@ -129,7 +129,7 @@ def _scrape_source_sync(source_id: UUID):
                     if 'quota' in error_str or '429' in error_str:
                         logger.error(f"⚠️  QUOTA EXCEEDED - Stopping scraping to prevent further API calls")
                         logger.error(f"Processed {articles_processed} articles before quota limit")
-                        error_message = f"Gemini API quota exceeded after processing {articles_processed} articles. Please wait or upgrade your API plan."
+                        error_message = f"OpenAI API quota exceeded after processing {articles_processed} articles. Please wait or upgrade your API plan."
                         # Log partial success
                         log = ScrapingLogCreate(
                             source_id=source_id,
@@ -427,14 +427,14 @@ async def _scrape_via_subprocess(source_id: UUID):
         logger.info(f"🟢 [DEBUG]   Script exists: {os.path.exists(script_path)}")
         
         # CRITICAL: Pass environment variables to subprocess
-        # The subprocess needs access to GEMINI_API_KEY, SUPABASE_URL, SUPABASE_KEY, etc.
+        # The subprocess needs access to OPENAI_API_KEY, SUPABASE_URL, SUPABASE_KEY, etc.
         subprocess_env = os.environ.copy()
         logger.info(f"🟢 [DEBUG] Environment variables:")
-        logger.info(f"🟢 [DEBUG]   GEMINI_API_KEY present: {'GEMINI_API_KEY' in subprocess_env}")
+        logger.info(f"🟢 [DEBUG]   OPENAI_API_KEY present: {'OPENAI_API_KEY' in subprocess_env}")
         logger.info(f"🟢 [DEBUG]   SUPABASE_URL present: {'SUPABASE_URL' in subprocess_env}")
         logger.info(f"🟢 [DEBUG]   SUPABASE_KEY present: {'SUPABASE_KEY' in subprocess_env}")
-        if 'GEMINI_API_KEY' in subprocess_env:
-            logger.info(f"🟢 [DEBUG]   GEMINI_API_KEY length: {len(subprocess_env['GEMINI_API_KEY'])}")
+        if 'OPENAI_API_KEY' in subprocess_env:
+            logger.info(f"🟢 [DEBUG]   OPENAI_API_KEY length: {len(subprocess_env['OPENAI_API_KEY'])}")
         if 'SUPABASE_URL' in subprocess_env:
             logger.info(f"🟢 [DEBUG]   SUPABASE_URL: {subprocess_env['SUPABASE_URL'][:50]}...")
         

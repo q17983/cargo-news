@@ -7,7 +7,7 @@ This guide will help you deploy both the backend (FastAPI) and frontend (Next.js
 1. **GitHub Account** - Your code should be in a GitHub repository
 2. **Railway Account** - Sign up at [railway.app](https://railway.app) (free tier available)
 3. **Supabase Project** - Already set up with database schema
-4. **Google Gemini API Key** - Already obtained
+4. **OpenAI API Key** - Already obtained
 
 ## 🎯 Deployment Strategy
 
@@ -71,7 +71,7 @@ In Railway dashboard, go to your backend service → **Variables** tab:
 ```
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_KEY=your_supabase_anon_key
-GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
+OPENAI_API_KEY=your_actual_openai_api_key_here
 SCRAPING_DELAY_SECONDS=2
 MAX_RETRIES=3
 PORT=8000
@@ -243,7 +243,7 @@ Upgrade to Railway Pro plan which doesn't sleep.
 ### Scraping Not Working
 
 1. **Check Backend Logs**: Look for scraping errors
-2. **Verify API Keys**: Supabase and Gemini keys are correct
+2. **Verify API Keys**: Supabase and OpenAI keys are correct
 3. **Check IP Blocking**: Some sites may block Railway's IP (use VPN/proxy if needed)
 
 ### Database Connection Issues
@@ -290,7 +290,7 @@ Check Railway logs for:
 - **Free tier**: 500MB database, 2GB bandwidth
 - Should be sufficient for this project
 
-### Google Gemini API
+### OpenAI API
 
 - **Pay-per-use**: ~$0.0014 per article
 - **1000 articles/month**: ~$1.40
@@ -324,7 +324,7 @@ https://your-frontend-url.railway.app
 ```
 SUPABASE_URL=...
 SUPABASE_KEY=...
-GEMINI_API_KEY=...
+OPENAI_API_KEY=...
 SCRAPING_DELAY_SECONDS=2
 MAX_RETRIES=3
 ```

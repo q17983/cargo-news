@@ -1,17 +1,17 @@
-"""Google Gemini API integration for article summarization."""
+"""OpenAI API integration for article summarization."""
 import logging
 import re
 import time
 from typing import Dict, Optional, List
 from datetime import datetime
-import google.generativeai as genai
+from openai import OpenAI
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class Summarizer:
-    """Summarizer using Google Gemini API."""
+    """Summarizer using OpenAI API."""
     
     # Rate limiting: minimum delay between API calls (seconds)
     MIN_DELAY_BETWEEN_CALLS = 1.0  # 1 second minimum delay
@@ -119,23 +119,15 @@ Tag: [至少5個標籤，用逗號分隔]
 """
     
     def __init__(self):
-        """Initialize the Gemini API client."""
-        genai.configure(api_key=settings.gemini_api_key)
-        # Use gemini-2.0-flash (fast and cost-effective) or fallback to latest
-        try:
-            self.model = genai.GenerativeModel('gemini-2.0-flash')
-        except:
-            try:
-                self.model = genai.GenerativeModel('gemini-flash-latest')
-            except:
-                # Last resort: use pro-latest
-                self.model = genai.GenerativeModel('gemini-pro-latest')
+        """Initialize the OpenAI API client."""
+        self.client = OpenAI(api_key=settings.openai_api_key)
+        self.model = "gpt-4o-mini"
     
     def summarize(self, article_content: str, article_url: str, 
                   article_title: str, article_date: Optional[datetime] = None,
                   source_name: str = "Air Cargo News") -> Dict:
         """
-        Summarize an article using Gemini API.
+        Summarize an article using OpenAI API.
         
         Args:
             article_content: Full article text
@@ -172,24 +164,28 @@ Tag: [至少5個標籤，用逗號分隔]
             Summarizer._last_call_time = time.time()
             
             try:
-                response = self.model.generate_content(
-                    prompt,
-                    generation_config={
-                        "temperature": 0.3,
-                        "top_p": 0.8,
-                        "top_k": 40,
-                        "max_output_tokens": 2048,
-                    }
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a professional air cargo news editor. Follow the requested output format exactly.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.3,
+                    top_p=0.8,
+                    max_tokens=2048,
                 )
-                
-                summary_text = response.text
+
+                summary_text = response.choices[0].message.content or ""
             except Exception as api_error:
                 error_str = str(api_error).lower()
                 # Check for quota errors
                 if 'quota' in error_str or '429' in error_str or 'rate limit' in error_str:
-                    logger.error(f"⚠️  GEMINI API QUOTA EXCEEDED: {str(api_error)}")
+                    logger.error(f"⚠️  OPENAI API QUOTA EXCEEDED: {str(api_error)}")
                     logger.error("Please wait before trying again or upgrade your API plan")
-                    raise Exception(f"Gemini API quota exceeded. Please wait or upgrade your plan. Error: {str(api_error)}")
+                    raise Exception(f"OpenAI API quota exceeded. Please wait or upgrade your plan. Error: {str(api_error)}")
                 # Re-raise other errors
                 raise
             
@@ -214,7 +210,7 @@ Tag: [至少5個標籤，用逗號分隔]
     def _parse_summary(self, summary_text: str, article_url: str, 
                       article_title: str, article_date: Optional[datetime],
                       source_name: str) -> Dict:
-        """Parse the structured summary output from Gemini."""
+        """Parse the structured summary output from OpenAI."""
         result = {
             'translated_title': article_title,
             'summary': '',

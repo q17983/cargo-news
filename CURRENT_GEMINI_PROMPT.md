@@ -1,4 +1,4 @@
-# Current Gemini Prompt
+# Current OpenAI Prompt
 
 The current prompt is located in `app/ai/summarizer.py` and is shown below:
 
@@ -112,7 +112,7 @@ Tag: [至少5個標籤，用逗號分隔]
 
 ## Current Configuration
 
-- **Model**: `gemini-2.0-flash` (with fallbacks to `gemini-flash-latest` and `gemini-pro-latest`)
+- **Model**: `openai-2.0-flash` (with fallbacks to `openai-flash-latest` and `openai-pro-latest`)
 - **Temperature**: 0.3 (for consistent output)
 - **Max Output Tokens**: 2048
 - **Content Limit**: 50,000 characters per article

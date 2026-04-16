@@ -1,5 +1,6 @@
 """Configuration management for the application."""
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from typing import Optional
 
 
@@ -10,8 +11,10 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_key: str
     
-    # Google Gemini API
-    gemini_api_key: str
+    # AI API keys
+    # Keep gemini_api_key for backward compatibility with older deployments/env vars.
+    openai_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None
     
     # Scraping Configuration
     scraping_delay_seconds: int = 2
@@ -24,6 +27,17 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+
+    @model_validator(mode="after")
+    def validate_ai_keys(self):
+        """Allow either OPENAI_API_KEY or legacy GEMINI_API_KEY."""
+        if not self.openai_api_key and self.gemini_api_key:
+            self.openai_api_key = self.gemini_api_key
+
+        if not self.openai_api_key:
+            raise ValueError("Either OPENAI_API_KEY or GEMINI_API_KEY must be set")
+
+        return self
 
 
 # Global settings instance

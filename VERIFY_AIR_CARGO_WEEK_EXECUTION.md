@@ -18,7 +18,7 @@
 3. **If Air Cargo Week detected**:
    - Calls `_scrape_via_subprocess(source_id)`
    - Runs `scrape_aircargoweek.py` as subprocess
-   - Passes environment variables (including `GEMINI_API_KEY`)
+   - Passes environment variables (including `OPENAI_API_KEY`)
 
 ---
 
@@ -41,7 +41,7 @@ After clicking "Scrape" for Air Cargo Week, look for these log messages:
 🚀 Starting Air Cargo Week subprocess scraping for source: <uuid>
 🔍 Current file location: /app/app/api/routes/scrape.py
 ✅ Found script at: /app/scrape_aircargoweek.py (Railway root - priority 1)
-Passing environment variables to subprocess (GEMINI_API_KEY present: True)
+Passing environment variables to subprocess (OPENAI_API_KEY present: True)
 Running Air Cargo Week scraper via subprocess: /opt/venv/bin/python /app/scrape_aircargoweek.py
 ```
 
@@ -133,7 +133,7 @@ The subprocess should output to logs. Look for:
 - [ ] Backend logs show "Detected Air Cargo Week" message
 - [ ] Backend logs show "Starting Air Cargo Week subprocess"
 - [ ] Backend logs show "Found script at: /app/scrape_aircargoweek.py"
-- [ ] Backend logs show "GEMINI_API_KEY present: True"
+- [ ] Backend logs show "OPENAI_API_KEY present: True"
 - [ ] Script starts executing (see script output in logs)
 - [ ] No "Script not found" errors
 - [ ] No path errors

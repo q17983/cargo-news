@@ -7,7 +7,7 @@ Get your Cargo News Aggregator up and running in 5 minutes!
 - [ ] Python 3.11+ installed
 - [ ] Node.js 18+ installed (for frontend)
 - [ ] Supabase account created
-- [ ] Google Gemini API key obtained
+- [ ] OpenAI API key obtained
 - [ ] Railway account (for deployment)
 
 ## Step 1: Database Setup (5 minutes)
@@ -21,7 +21,7 @@ Get your Cargo News Aggregator up and running in 5 minutes!
    - Project URL → `https://akvdrlzezeqqutdcvbjv.supabase.co`
    - anon/public key → `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrdmRybHplemVxcXV0ZGN2Ymp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwMDIwMDUsImV4cCI6MjA3ODU3ODAwNX0.uLMMuYnUVdiKpo5HcOVmNHam8O8wC3hiAAfhx0GSuY4`
 
-## Step 2: Get Gemini API Key (2 minutes)
+## Step 2: Get OpenAI API Key (2 minutes)
 
 1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Sign in with Google account
@@ -97,7 +97,7 @@ curl -X POST http://localhost:8000/api/scrape/{source_id}
 5. Add environment variables:
    - `SUPABASE_URL`
    - `SUPABASE_KEY`
-   - `GEMINI_API_KEY`
+   - `OPENAI_API_KEY`
 6. Deploy!
 
 ## Troubleshooting

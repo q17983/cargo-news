@@ -9,8 +9,8 @@ Make sure your `.env` file (or Railway environment variables) contains:
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_KEY=your-anon-key-here
 
-# Google Gemini API
-GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
+# OpenAI API
+OPENAI_API_KEY=your_actual_openai_api_key_here
 
 # Optional
 SCRAPING_DELAY_SECONDS=2

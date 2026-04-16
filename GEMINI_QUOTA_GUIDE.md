@@ -1,4 +1,4 @@
-# Gemini API Quota Management Guide
+# OpenAI API Quota Management Guide
 
 ## ⚠️ Quota Exceeded Error
 
@@ -8,7 +8,7 @@ If you're seeing "quota exceeded" errors, here's what happened and how to fix it
 
 1. **Too many articles scraped at once**
    - First-time scrape was set to 100 pages (potentially 1000+ articles)
-   - Each article = 1 Gemini API call
+   - Each article = 1 OpenAI API call
    - Free tier has limited requests per minute/day
 
 2. **No rate limiting**
@@ -21,7 +21,7 @@ If you're seeing "quota exceeded" errors, here's what happened and how to fix it
 ## ✅ Fixes Implemented
 
 ### 1. Rate Limiting
-- Added 1-second minimum delay between Gemini API calls
+- Added 1-second minimum delay between OpenAI API calls
 - Prevents hitting rate limits too quickly
 
 ### 2. Reduced First-Time Scrape
@@ -38,7 +38,7 @@ If you're seeing "quota exceeded" errors, here's what happened and how to fix it
 - Always checks duplicates (even on first scrape)
 - Prevents re-summarizing existing articles
 
-## 📊 Google Gemini API Limits
+## 📊 OpenAI API Limits
 
 ### Free Tier (Typical Limits)
 - **Requests per minute**: ~15-60 requests

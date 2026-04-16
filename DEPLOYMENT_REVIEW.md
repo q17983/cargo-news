@@ -59,7 +59,7 @@ playwright install chromium
 ```
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
-GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
+OPENAI_API_KEY=your_actual_openai_api_key_here
 ```
 
 ### Optional Variables (Have Defaults):
@@ -195,7 +195,7 @@ Railway free tier may sleep after inactivity. Options:
 4. **Monitor Logs**:
    - Check Railway logs for errors
    - Monitor Supabase for new articles
-   - Check Gemini API usage
+   - Check OpenAI API usage
 
 ## 🐛 Common Deployment Issues
 

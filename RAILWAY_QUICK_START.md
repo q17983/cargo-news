@@ -11,7 +11,7 @@
    ```
    SUPABASE_URL=your_supabase_url
    SUPABASE_KEY=your_supabase_key
-   GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
+   OPENAI_API_KEY=your_actual_openai_api_key_here
    SCRAPING_DELAY_SECONDS=2
    MAX_RETRIES=3
    ```

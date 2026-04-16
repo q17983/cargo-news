@@ -1,4 +1,4 @@
-# Gemini API Pricing & Quota Explanation
+# OpenAI API Pricing & Quota Explanation
 
 ## ⚠️ Why "Quota Exceeded" Still Shows
 
@@ -6,7 +6,7 @@ The "quota exceeded" warning **persists** because it's stored in your **Supabase
 
 ### Where It's Stored
 - **Table**: `scraping_logs` in Supabase
-- **Field**: `error_message` contains "Gemini API quota exceeded..."
+- **Field**: `error_message` contains "OpenAI API quota exceeded..."
 - **Status**: `status = 'partial'` (meaning some articles were processed before hitting quota)
 
 ### Why It Still Shows
@@ -22,9 +22,9 @@ The error will disappear when:
 
 ---
 
-## 💰 Gemini API Pricing (2025)
+## 💰 OpenAI API Pricing (2025)
 
-### Model: `gemini-2.0-flash` (Current Model Used)
+### Model: `openai-2.0-flash` (Current Model Used)
 
 **Input Pricing:**
 - **Free Tier**: $0 per 1M tokens (up to quota limits)
@@ -69,7 +69,7 @@ The error will disappear when:
 
 ## 📊 Free Tier Quota Limits
 
-### Google Gemini API Free Tier
+### OpenAI API Free Tier
 
 **Typical Limits (varies by account):**
 - **Requests per minute**: 15-60 requests

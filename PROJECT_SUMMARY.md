@@ -10,7 +10,7 @@ A complete full-stack application for aggregating and summarizing air cargo news
 - **Framework**: FastAPI with async support
 - **Database**: Supabase (PostgreSQL)
 - **Scraping**: BeautifulSoup4 with anti-bot measures
-- **AI**: Google Gemini API for summarization
+- **AI**: OpenAI API for summarization
 - **Scheduling**: APScheduler for daily scraping at 00:00 UTC
 
 ### Frontend (Next.js/React)
@@ -27,7 +27,7 @@ A complete full-stack application for aggregating and summarizing air cargo news
    - Duplicate detection
 
 2. **AI-Powered Summarization**
-   - Google Gemini API integration
+   - OpenAI API integration
    - Traditional Chinese output
    - Structured summaries with sub-headings
    - Automatic tagging system
@@ -103,7 +103,7 @@ cargo-news/
 Required:
 - `SUPABASE_URL` - Supabase project URL
 - `SUPABASE_KEY` - Supabase API key
-- `GEMINI_API_KEY` - Google Gemini API key
+- `OPENAI_API_KEY` - OpenAI API key
 
 Optional:
 - `SCRAPING_DELAY_SECONDS` - Delay between requests (default: 2)
@@ -157,7 +157,7 @@ Optional:
 ## Next Steps
 
 1. **Set up Supabase**: Create project and run schema SQL
-2. **Get API Keys**: Obtain Gemini API key
+2. **Get API Keys**: Obtain OpenAI API key
 3. **Deploy to Railway**: Follow deployment guide
 4. **Add First Source**: Use web UI to add aircargonews.net
 5. **Test Scraping**: Manually trigger scraping

@@ -3,7 +3,7 @@
 Complete scraping script for aircargoweek.com
 This script will:
 1. Scrape articles from aircargoweek.com
-2. Generate AI summaries using Gemini
+2. Generate AI summaries using OpenAI
 3. Save to Supabase database
 4. Can be viewed in the web interface
 

@@ -31,7 +31,7 @@
 |--------------|---------|----------|
 | `SUPABASE_URL` | Supabase project URL | ✅ |
 | `SUPABASE_KEY` | Supabase anon key | ✅ |
-| `GEMINI_API_KEY` | Google Gemini API key | ✅ |
+| `OPENAI_API_KEY` | OpenAI API key | ✅ |
 | `SCRAPING_DELAY_SECONDS` | Delay between requests | Optional |
 | `MAX_RETRIES` | Max retry attempts | Optional |
 | `PORT` | Server port (Railway sets automatically) | Auto |
@@ -117,7 +117,7 @@ Uses `pydantic-settings` to load from environment variables:
   - [ ] Frontend service (`cargo-news`)
 
 - [ ] **Environment Variables Set**
-  - [ ] Backend: `SUPABASE_URL`, `SUPABASE_KEY`, `GEMINI_API_KEY`
+  - [ ] Backend: `SUPABASE_URL`, `SUPABASE_KEY`, `OPENAI_API_KEY`
   - [ ] Frontend: `NEXT_PUBLIC_API_URL` (MUST be set before first build)
 
 ### Deployment Steps
@@ -224,7 +224,7 @@ Uses `pydantic-settings` to load from environment variables:
 
 **Solution:**
 1. Generate new API key from Google AI Studio
-2. Update `GEMINI_API_KEY` in Railway backend service Variables
+2. Update `OPENAI_API_KEY` in Railway backend service Variables
 3. Railway will auto-redeploy
 4. Never commit API keys to Git
 
@@ -267,7 +267,7 @@ Uses `pydantic-settings` to load from environment variables:
 3. **Verify Environment Variables:**
    - Check all required variables are set
    - Verify Supabase credentials are correct
-   - Verify Gemini API key is valid
+   - Verify OpenAI API key is valid
 
 ### Scraping Not Working
 
@@ -281,7 +281,7 @@ Uses `pydantic-settings` to load from environment variables:
    - Supabase `scraping_logs` table
 
 3. **Verify API Keys:**
-   - Gemini API key is valid and not exceeded quota
+   - OpenAI API key is valid and not exceeded quota
    - Supabase credentials are correct
 
 ---
@@ -380,7 +380,7 @@ Uses `pydantic-settings` to load from environment variables:
 **Backend:**
 - `SUPABASE_URL` = (from Supabase dashboard)
 - `SUPABASE_KEY` = (from Supabase dashboard)
-- `GEMINI_API_KEY` = (from Google AI Studio)
+- `OPENAI_API_KEY` = (from Google AI Studio)
 
 ### Important URLs
 

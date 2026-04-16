@@ -74,9 +74,9 @@
    - Use All tab for traditional list view
 4. **Visual Clarity**: Clear section headers, better spacing, improved card design
 
-## 📝 Current Gemini Prompt
+## 📝 Current OpenAI Prompt
 
-The current Gemini prompt is documented in `CURRENT_GEMINI_PROMPT.md`. It includes:
+The current OpenAI prompt is documented in `CURRENT_GEMINI_PROMPT.md` (legacy filename). It includes:
 - Traditional Chinese summarization
 - Structured output with sub-headings
 - Tag generation (at least 5 tags per article)

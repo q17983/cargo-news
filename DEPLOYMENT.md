@@ -5,7 +5,7 @@ This guide will help you deploy the Cargo News Aggregator system to Railway.
 ## Prerequisites
 
 1. **Supabase Account**: Create a free account at [supabase.com](https://supabase.com)
-2. **Google Gemini API Key**: Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. **OpenAI API Key**: Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
 3. **Railway Account**: Sign up at [railway.app](https://railway.app)
 4. **GitHub Account**: For version control and Railway integration
 
@@ -54,7 +54,7 @@ In Railway dashboard, go to your project > Variables and add:
 ```
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
-GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
+OPENAI_API_KEY=your_actual_openai_api_key_here
 SCRAPING_DELAY_SECONDS=2
 MAX_RETRIES=3
 PORT=8000
@@ -116,13 +116,13 @@ The frontend can be deployed separately:
 
 - Use Railway's built-in logs dashboard
 - Set up error tracking (optional: Sentry)
-- Monitor API usage for Gemini API
+- Monitor API usage for OpenAI API
 
 ## Cost Considerations
 
 - **Railway**: Free tier available, pay-as-you-go pricing
 - **Supabase**: Free tier includes 500MB database
-- **Google Gemini API**: Pay-per-use pricing, check current rates
+- **OpenAI API**: Pay-per-use pricing, check current rates
 
 ## Next Steps
 

@@ -10,7 +10,7 @@ Follow these exact steps to deploy your system to Railway.
 ✅ GitHub account (you have it!)  
 ✅ Code ready in a GitHub repository  
 ✅ Supabase project set up  
-✅ Google Gemini API key  
+✅ OpenAI API key  
 
 ---
 
@@ -102,8 +102,8 @@ git push -u origin main
    *(Get this from Supabase Dashboard → Settings → API → anon public key)*
 
    ```
-   Variable Name: GEMINI_API_KEY
-   Value: AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
+   Variable Name: OPENAI_API_KEY
+   Value: your_actual_openai_api_key_here
    ```
    *(Get this from Google AI Studio)*
 
@@ -338,7 +338,7 @@ Railway free tier may sleep after inactivity. To prevent this:
 
 **Solutions**:
 1. Check backend logs for scraping errors
-2. Verify Supabase and Gemini API keys are correct
+2. Verify Supabase and OpenAI API keys are correct
 3. Check if target website is blocking requests
 4. Verify database schema is set up in Supabase
 
@@ -366,7 +366,7 @@ Railway free tier may sleep after inactivity. To prevent this:
 ```
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
-GEMINI_API_KEY=AIzaSyCSg4pvORmJmdsfPLqmZ41Ia5v9kDNS1Dg
+OPENAI_API_KEY=your_actual_openai_api_key_here
 SCRAPING_DELAY_SECONDS=2
 MAX_RETRIES=3
 ```

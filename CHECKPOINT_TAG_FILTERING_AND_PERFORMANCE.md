@@ -460,7 +460,7 @@ try {
 
 - `TAG_CATEGORIZATION_ANALYSIS.md` - Detailed tag categorization analysis
 - `list_all_tags.py` - Script to analyze all tags
-- `GEMINI_PRICING_AND_QUOTA.md` - API quota management
+- `GEMINI_PRICING_AND_QUOTA.md` - OpenAI API quota management (legacy filename)
 - `DEPLOYMENT_CHECKPOINT.md` - Previous deployment checkpoint
 
 ---

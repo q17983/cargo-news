@@ -3,7 +3,7 @@
 Complete scraping script for stattimes.com
 This script will:
 1. Scrape articles from stattimes.com
-2. Generate AI summaries using Gemini
+2. Generate AI summaries using OpenAI
 3. Save to Supabase database
 4. Can be viewed in the web interface
 
@@ -19,28 +19,41 @@ import os
 # Get project root first
 project_root = os.path.dirname(os.path.abspath(__file__))
 
+# Check if running in Railway/Docker (packages installed globally, no venv needed)
+is_railway = os.environ.get('RAILWAY_ENVIRONMENT') is not None
+is_docker = os.path.exists('/.dockerenv') or os.path.exists('/proc/self/cgroup')
+skip_venv_check = is_railway or is_docker
+
 # Check if running in virtual environment, if not, try to use venv Python
-venv_python = os.path.join(project_root, 'venv', 'bin', 'python3')
-if not hasattr(sys, 'real_prefix') and not (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
-    # Not in venv, check if venv exists and use it
-    if os.path.exists(venv_python):
-        print("=" * 70)
-        print("⚠️  Not in virtual environment. Switching to venv Python...")
-        print("=" * 70)
-        print()
-        # Re-execute with venv Python
-        os.execv(venv_python, [venv_python] + sys.argv)
-    else:
-        print("=" * 70)
-        print("⚠️  WARNING: Virtual environment not found!")
-        print("=" * 70)
-        print()
-        print("Please create and activate the virtual environment first:")
-        print("  python3 -m venv venv")
-        print("  source venv/bin/activate")
-        print("  pip install -r requirements.txt")
-        print()
-        sys.exit(1)
+# Skip this check in Railway/Docker where packages are installed globally
+if not skip_venv_check:
+    venv_python = os.path.join(project_root, 'venv', 'bin', 'python3')
+    if not hasattr(sys, 'real_prefix') and not (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        # Not in venv, check if venv exists and use it
+        if os.path.exists(venv_python):
+            print("=" * 70)
+            print("⚠️  Not in virtual environment. Switching to venv Python...")
+            print("=" * 70)
+            print()
+            # Re-execute with venv Python
+            os.execv(venv_python, [venv_python] + sys.argv)
+        else:
+            print("=" * 70)
+            print("⚠️  WARNING: Virtual environment not found!")
+            print("=" * 70)
+            print()
+            print("Please create and activate the virtual environment first:")
+            print("  python3 -m venv venv")
+            print("  source venv/bin/activate")
+            print("  pip install -r requirements.txt")
+            print()
+            sys.exit(1)
+else:
+    # Running in Railway/Docker - packages are installed globally
+    print("=" * 70)
+    print("✅ Running in Railway/Docker environment - using global Python packages")
+    print("=" * 70)
+    print()
 
 # Add project root to Python path
 sys.path.insert(0, project_root)
@@ -185,17 +198,18 @@ def scrape_stattimes(max_pages=3, check_duplicates=True):
                 # Scrape article
                 article_data = scraper.scrape_article(article_url)
                 if not article_data:
+                    # Check if it's a 403 error (IP blocked)
+                    # The scraper will log the 403 error, but we should inform the user
                     print(f"   ❌ Failed to scrape")
+                    print(f"      (Check logs for details - might be 403 IP block)")
                     articles_failed += 1
                     continue
                 
                 # Check by title after scraping
                 article_title = article_data.get('title', '')
                 if db.article_exists(article_url, title=article_title):
-                    print(f"   ⏭️  Already exists (by title): {article_title[:40]}...")
+                    print(f"   ⏭️  Already exists (by title)")
                     continue
-                
-                print(f"   ✓ Scraped: {article_title[:50]}...")
                 
                 # Generate summary (with quota error handling)
                 print(f"   🤖 Generating AI summary...")
@@ -231,56 +245,54 @@ def scrape_stattimes(max_pages=3, check_duplicates=True):
                 
                 db.create_article(article)
                 articles_processed += 1
-                print(f"   ✅ Saved to database")
+                print(f"   ✓ Saved to database")
                 print()
                 
             except Exception as e:
                 logger.error(f"Error processing article {article_url}: {str(e)}")
                 print(f"   ❌ Error: {str(e)}")
                 articles_failed += 1
-                print()
                 continue
         
-        # Create scraping log
+        # Log success
         status = 'success' if articles_failed == 0 else 'partial'
         log = ScrapingLogCreate(
             source_id=source_id,
             status=status,
-            articles_found=articles_found,
-            articles_processed=articles_processed
+            articles_found=articles_found
         )
         db.create_scraping_log(log)
         
+        print()
         print("=" * 70)
-        print("✅ Scraping Complete!")
+        print("Scraping Complete!")
         print("=" * 70)
-        print(f"Articles found: {articles_found}")
+        print(f"Articles found:     {articles_found}")
         print(f"Articles processed: {articles_processed}")
-        print(f"Articles failed: {articles_failed}")
+        print(f"Articles failed:    {articles_failed}")
+        print()
+        print(f"✓ View articles at: http://localhost:3000 (or your frontend URL)")
         print()
         
     except Exception as e:
         logger.error(f"Error in scraping workflow: {str(e)}", exc_info=True)
         print()
         print("=" * 70)
-        print("❌ Error occurred during scraping")
+        print("❌ Error occurred!")
         print("=" * 70)
         print(f"Error: {str(e)}")
         print()
         
         # Log failure
-        try:
+        if 'source_id' in locals():
             log = ScrapingLogCreate(
-                source_id=source_id if 'source_id' in locals() else None,
+                source_id=source_id,
                 status='failed',
                 error_message=str(e),
-                articles_found=articles_found,
-                articles_processed=articles_processed
+                articles_found=articles_found
             )
             db.create_scraping_log(log)
-        except:
-            pass
-        
+    
     finally:
         if scraper:
             scraper.close()
@@ -290,8 +302,10 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='Scrape articles from STAT Times')
-    parser.add_argument('--max-pages', type=int, default=3, help='Maximum number of pages to scrape (default: 3)')
-    parser.add_argument('--no-duplicate-check', action='store_true', help='Disable duplicate checking (for first-time scraping)')
+    parser.add_argument('--max-pages', type=int, default=3,
+                        help='Maximum number of pages to scrape (default: 3)')
+    parser.add_argument('--no-duplicate-check', action='store_true',
+                        help='Disable duplicate checking (scrape all articles)')
     
     args = parser.parse_args()
     
@@ -299,4 +313,3 @@ if __name__ == "__main__":
         max_pages=args.max_pages,
         check_duplicates=not args.no_duplicate_check
     )
-
