@@ -37,7 +37,7 @@ class Summarizer:
 ### 2. 元數據提取（必須完整準確）
 - **來源名稱**：識別新聞網站名稱（例如：Air Cargo News）
 - **完整URL**：【關鍵】必須提取**完整且正確的URL路徑**，包括所有路徑參數
-  * 格式範例：`https://www.aircargonews.net/news/smes-confident-about-asia-europe-trade-expansion/1080893.article`
+  * 格式範例：`https://www.aircargonews.net/freight-forwarder/2026/03/bifa-representative-meets-with-policymakers-to-discuss-windsor-framework/`
   * 不要只提供主域名，必須包含完整路徑
 - **原始標題**：保留英文原文標題
 - **發布日期**：格式必須為 `YYYY年MM月DD日`（例如：2024年01月15日）
@@ -99,7 +99,7 @@ class Summarizer:
 （根據文章內容繼續添加更多子標題和要點）
 
 來源：[來源名稱]
-網址：[完整且正確的URL，例如：https://www.aircargonews.net/news/smes-confident-about-asia-europe-trade-expansion/1080893.article]
+網址：[完整且正確的URL，例如：https://www.aircargonews.net/freight-forwarder/2026/03/bifa-representative-meets-with-policymakers-to-discuss-windsor-framework/]
 標題: [原始英文標題]
 新聞日期：[發布日期，格式：YYYY年MM月DD日，如果未標示則寫「日期未標示」]
 

@@ -160,7 +160,7 @@ class ScraperFactory:
         domain = parsed.netloc.lower()
         
         if 'aircargonews.net' in domain:
-            return f"{parsed.scheme}://{parsed.netloc}/latest-news/31.more?navcode=28"
+            return f"{parsed.scheme}://{parsed.netloc}/category/business/"
         
         # Add your site's listing URL logic
         elif 'example.com' in domain:

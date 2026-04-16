@@ -1,5 +1,6 @@
 """Aircargonews.net specific scraper."""
 import logging
+import re
 from typing import List, Optional, Dict
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
@@ -13,6 +14,9 @@ class AircargonewsScraper(BaseScraper):
     """Scraper for aircargonews.net."""
     
     BASE_URL = "https://www.aircargonews.net"
+    # Article URL format: /<section>/<year>/<month>/<slug>/
+    # Month must be zero-padded (01-12), e.g. Feb=02, Mar=03.
+    ARTICLE_URL_PATTERN = re.compile(r"^/[^/]+/\d{4}/(0[1-9]|1[0-2])/[^/]+/?$")
     
     # CSS selectors for aircargonews.net
     ARTICLE_LIST_SELECTOR = "article, .article-item, .news-item"
@@ -41,13 +45,15 @@ class AircargonewsScraper(BaseScraper):
             List of article URLs
         """
         article_urls = []
-        current_url = listing_url
         pages_scraped = 0
         consecutive_duplicate_pages = 0
         max_consecutive_duplicates = 2  # Stop after 2 pages of all duplicates
-        
-        while pages_scraped < max_pages and current_url:
-            logger.info(f"Scraping page {pages_scraped + 1}: {current_url}")
+        base_listing_url = self._normalize_category_url(listing_url)
+
+        while pages_scraped < max_pages:
+            current_page = pages_scraped + 1
+            current_url = self._build_page_url(base_listing_url, current_page)
+            logger.info(f"Scraping page {current_page}: {current_url}")
             soup = self.fetch_page(current_url)
             
             if not soup:
@@ -56,10 +62,10 @@ class AircargonewsScraper(BaseScraper):
             
             # Extract article links from current page
             page_urls = self._extract_article_urls_from_page(soup, current_url)
-            logger.info(f"Found {len(page_urls)} articles on page {pages_scraped + 1}")
+            logger.info(f"Found {len(page_urls)} articles on page {current_page}")
             
             if not page_urls:
-                logger.warning(f"No articles found on page {pages_scraped + 1}, stopping")
+                logger.warning(f"No articles found on page {current_page}, stopping")
                 break
             
             # If checking duplicates, filter out existing ones
@@ -72,12 +78,12 @@ class AircargonewsScraper(BaseScraper):
                     else:
                         new_urls.append(url)
                 
-                logger.info(f"Page {pages_scraped + 1}: {len(new_urls)} new articles, {duplicate_count} duplicates")
+                logger.info(f"Page {current_page}: {len(new_urls)} new articles, {duplicate_count} duplicates")
                 
                 # If all articles on this page are duplicates, increment counter
                 if len(new_urls) == 0:
                     consecutive_duplicate_pages += 1
-                    logger.info(f"All articles on page {pages_scraped + 1} are duplicates ({consecutive_duplicate_pages}/{max_consecutive_duplicates})")
+                    logger.info(f"All articles on page {current_page} are duplicates ({consecutive_duplicate_pages}/{max_consecutive_duplicates})")
                     
                     # Stop if we've hit too many consecutive duplicate pages
                     if consecutive_duplicate_pages >= max_consecutive_duplicates:
@@ -91,13 +97,7 @@ class AircargonewsScraper(BaseScraper):
                 # No duplicate checking, add all URLs
                 article_urls.extend(page_urls)
             
-            # Find next page
-            current_url = self._get_next_page_url(soup, current_url)
             pages_scraped += 1
-            
-            if not current_url:
-                logger.info("No more pages found")
-                break
         
         # Remove duplicates while preserving order (in case of any duplicates within pages)
         seen = set()
@@ -114,44 +114,23 @@ class AircargonewsScraper(BaseScraper):
         """Extract article URLs from a listing page."""
         urls = []
         seen = set()
-        
-        # Primary method: Look for links ending with .article (actual article pages)
-        article_links = soup.select('a[href$=".article"]')
-        for link in article_links:
+
+        # Collect links from prominent listing anchors first, then all anchors as fallback.
+        candidate_links = soup.select('h1 a, h2 a, h3 a, h4 a, article a, .entry-title a, a')
+        for link in candidate_links:
             href = link.get('href')
-            if href:
-                absolute_url = urljoin(base_url, href)
-                parsed = urlparse(absolute_url)
-                if 'aircargonews.net' in parsed.netloc and absolute_url not in seen:
-                    urls.append(absolute_url)
-                    seen.add(absolute_url)
-        
-        # Secondary method: Look for article links in headings (h2, h3, h4)
-        heading_links = soup.select('h2 a, h3 a, h4 a, .article-title a, .title a, .headline a')
-        for link in heading_links:
-            href = link.get('href')
-            if href:
-                absolute_url = urljoin(base_url, href)
-                parsed = urlparse(absolute_url)
-                # Check if it's an article URL (has .article or matches article pattern)
-                if ('aircargonews.net' in parsed.netloc and 
-                    ('.article' in absolute_url or 
-                     (any(char.isdigit() for char in parsed.path.split('/')[-1]) and 
-                      len(parsed.path.split('/')) >= 3)) and
-                    absolute_url not in seen):
-                    urls.append(absolute_url)
-                    seen.add(absolute_url)
-        
-        # Filter out category pages (they don't have .article and are usually 1-2 path segments)
-        filtered_urls = []
-        for url in urls:
-            parsed = urlparse(url)
-            path_parts = [p for p in parsed.path.split('/') if p]
-            # Article URLs typically have at least 2 path segments and end with .article or have numbers
-            if '.article' in url or (len(path_parts) >= 2 and any(char.isdigit() for char in path_parts[-1])):
-                filtered_urls.append(url)
-        
-        return filtered_urls
+            if not href:
+                continue
+
+            absolute_url = urljoin(base_url, href.split('#')[0])
+            parsed = urlparse(absolute_url)
+            if 'aircargonews.net' not in parsed.netloc:
+                continue
+            if self._is_article_url(parsed.path) and absolute_url not in seen:
+                urls.append(absolute_url)
+                seen.add(absolute_url)
+
+        return urls
     
     def _get_next_page_url(self, soup: BeautifulSoup, current_url: str) -> Optional[str]:
         """Find the next page URL."""
@@ -189,6 +168,25 @@ class AircargonewsScraper(BaseScraper):
                 return next_url
         
         return None
+
+    def _normalize_category_url(self, url: str) -> str:
+        """Normalize category URL to /category/<slug>/ format."""
+        parsed = urlparse(url)
+        path = parsed.path or "/"
+        if not path.endswith("/"):
+            path = f"{path}/"
+        return f"{parsed.scheme}://{parsed.netloc}{path}"
+
+    def _build_page_url(self, category_url: str, page_number: int) -> str:
+        """Build paginated category URL: /page/{n}/ for page >= 2."""
+        if page_number <= 1:
+            return category_url
+        return f"{category_url}page/{page_number}/"
+
+    def _is_article_url(self, path: str) -> bool:
+        """Check whether path matches article pattern: /slug/yyyy/mm/title/."""
+        normalized_path = path if path.endswith("/") else f"{path}/"
+        return bool(self.ARTICLE_URL_PATTERN.match(normalized_path))
     
     def _extract_page_number(self, url: str) -> Optional[int]:
         """Extract page number from URL."""

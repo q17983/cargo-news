@@ -56,7 +56,7 @@ class ScraperFactory:
     def get_listing_url(url: str) -> str:
         """
         Get the listing page URL for a news source.
-        For aircargonews.net, use the latest-news page.
+        For aircargonews.net, use a category listing page.
         
         Args:
             url: Source URL (could be homepage or specific section)
@@ -68,10 +68,10 @@ class ScraperFactory:
         domain = parsed.netloc.lower()
         
         if 'aircargonews.net' in domain:
-            # Use the latest-news listing page which has all articles
-            if '/latest-news' not in url:
-                return f"{parsed.scheme}://{parsed.netloc}/latest-news/31.more?navcode=28"
-            return url
+            # Default to one category listing page; full scraping iterates all categories.
+            if '/category/' not in parsed.path:
+                return f"{parsed.scheme}://{parsed.netloc}/category/business/"
+            return f"{parsed.scheme}://{parsed.netloc}{parsed.path if parsed.path.endswith('/') else parsed.path + '/'}"
         
         if 'aircargoweek.com' in domain:
             # Use the news listing page

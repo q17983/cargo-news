@@ -61,6 +61,25 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+AIR_CARGO_NEWS_CATEGORY_URLS = [
+    "https://www.aircargonews.net/category/airlines/",
+    "https://www.aircargonews.net/category/freighter-operator/",
+    "https://www.aircargonews.net/category/cargo-airport/",
+    "https://www.aircargonews.net/category/freight-forwarder/",
+    "https://www.aircargonews.net/category/supply-chains/",
+    "https://www.aircargonews.net/category/data/",
+    "https://www.aircargonews.net/category/people/",
+    "https://www.aircargonews.net/category/sustainability/",
+    "https://www.aircargonews.net/category/e-commerce-logistics/",
+    "https://www.aircargonews.net/category/ground-handler/",
+    "https://www.aircargonews.net/category/technology/",
+    "https://www.aircargonews.net/category/pharma-logistics/",
+    "https://www.aircargonews.net/category/charter-company/",
+    "https://www.aircargonews.net/category/gssa/",
+    "https://www.aircargonews.net/category/freighter-conversions-mro/",
+    "https://www.aircargonews.net/category/business/",
+]
+
 
 def get_or_create_source():
     """Get or create the aircargonews source in database."""
@@ -120,11 +139,6 @@ def scrape_aircargonews(max_pages=3, check_duplicates=True):
             max_retries=3
         )
         
-        # Get listing URL
-        listing_url = ScraperFactory.get_listing_url(source.url)
-        print(f"Listing URL: {listing_url}")
-        print()
-        
         # Check if this is first-time scraping
         existing_articles = db.get_articles_by_source(source_id, limit=1)
         is_first_scrape = len(existing_articles) == 0
@@ -140,20 +154,32 @@ def scrape_aircargonews(max_pages=3, check_duplicates=True):
         print()
         print("Step 1: Extracting article URLs...")
         print("-" * 70)
-        
-        # Get article URLs
+
+        # Get article URLs from all categories
+        article_urls = []
         if hasattr(scraper, 'get_article_urls'):
             duplicate_check = db.article_exists if check_duplicates else None
-            article_urls = scraper.get_article_urls(
-                listing_url,
-                max_pages=max_pages,
-                check_duplicates=check_duplicates,
-                duplicate_check_func=duplicate_check
-            )
-            articles_found = len(article_urls)
+            for category_url in AIR_CARGO_NEWS_CATEGORY_URLS:
+                print(f"   - Category: {category_url}")
+                category_urls = scraper.get_article_urls(
+                    category_url,
+                    max_pages=max_pages,
+                    check_duplicates=check_duplicates,
+                    duplicate_check_func=duplicate_check
+                )
+                article_urls.extend(category_urls)
         else:
             logger.warning("Scraper doesn't support get_article_urls")
-            article_urls = []
+
+        # Deduplicate globally across categories
+        seen_urls = set()
+        deduped_urls = []
+        for url in article_urls:
+            if url not in seen_urls:
+                seen_urls.add(url)
+                deduped_urls.append(url)
+        article_urls = deduped_urls
+        articles_found = len(article_urls)
         
         print(f"✓ Found {articles_found} article URLs")
         print()
