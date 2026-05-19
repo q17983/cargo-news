@@ -12,6 +12,8 @@ from app.database.supabase_client import db
 from app.scraper.scraper_factory import ScraperFactory
 from app.ai.summarizer import Summarizer
 from app.database.models import ArticleCreate, ScrapingLogCreate
+from app.config import settings
+from app.scraper.standalone_runner import run_standalone_scraper
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -224,8 +226,20 @@ async def scrape_source(source_id: UUID):
     logger.info(f"🔵 [DEBUG] After creation - RUNNING_TASKS keys: {list(RUNNING_TASKS.keys())}")
     logger.info(f"🔵 [DEBUG] Entry content: {RUNNING_TASKS.get(source_id_str, 'NOT FOUND')}")
     
-    # Check if this is Air Cargo Week (needs special handling for Playwright)
-    if 'aircargoweek.com' in source.url.lower():
+    # Air Cargo News: use standalone script (all 16 category listing pages).
+    if 'aircargonews.net' in source.url.lower():
+        logger.info("Detected Air Cargo News source - using scrape_aircargonews.py subprocess")
+        try:
+            await run_standalone_scraper(
+                source_id,
+                "scrape_aircargonews.py",
+                max_pages=settings.aircargonews_daily_max_pages,
+            )
+        finally:
+            if source_id_str in RUNNING_TASKS:
+                del RUNNING_TASKS[source_id_str]
+    # Air Cargo Week: Playwright via standalone script
+    elif 'aircargoweek.com' in source.url.lower():
         # For Air Cargo Week, run standalone script as subprocess
         # This avoids Playwright threading issues
         logger.info(f"✅ Detected Air Cargo Week source - Using subprocess (Playwright compatibility)")

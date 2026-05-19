@@ -1,80 +1,111 @@
 """Scheduler for daily article scraping."""
 import logging
-import asyncio
+import os
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from app.config import settings
 from app.database.supabase_client import db
 from app.api.routes.scrape import scrape_source
+from app.scraper.standalone_runner import run_standalone_scraper
 
 logger = logging.getLogger(__name__)
 
 scheduler = None
 
 
+def _is_aircargonews(url: str) -> bool:
+    return "aircargonews.net" in url.lower()
+
+
+def _is_aircargoweek(url: str) -> bool:
+    return "aircargoweek.com" in url.lower()
+
+
 async def daily_scrape_job():
     """Job to scrape all active sources daily."""
     logger.info("Starting daily scrape job")
-    
+
     try:
-        # Get all active sources
         sources = db.get_all_sources(active_only=True)
-        
+
         if not sources:
             logger.info("No active sources found for daily scraping")
             return
-        
-        logger.info(f"Found {len(sources)} active sources to scrape")
-        
-        # Scrape each source
+
+        logger.info("Found %s active sources to scrape", len(sources))
+
         for source in sources:
             try:
-                logger.info(f"Scraping source: {source.name} ({source.url})")
-                await scrape_source(source.id)
+                logger.info("Scraping source: %s (%s)", source.name, source.url)
+
+                if _is_aircargonews(source.url):
+                    # Use the same standalone script as local runs (all 16 categories).
+                    await run_standalone_scraper(
+                        source.id,
+                        "scrape_aircargonews.py",
+                        max_pages=settings.aircargonews_daily_max_pages,
+                    )
+                elif _is_aircargoweek(source.url):
+                    await run_standalone_scraper(
+                        source.id,
+                        "scrape_aircargoweek.py",
+                        max_pages=5,
+                    )
+                else:
+                    await scrape_source(source.id)
+
             except Exception as e:
-                logger.error(f"Error scraping source {source.id}: {str(e)}")
+                logger.error("Error scraping source %s: %s", source.id, e)
                 continue
-        
+
         logger.info("Daily scrape job completed")
-        
+
     except Exception as e:
-        logger.error(f"Error in daily scrape job: {str(e)}")
+        logger.error("Error in daily scrape job: %s", e)
 
 
 def start_scheduler():
-    """Start the APScheduler with daily scraping at 00:00 UTC."""
+    """Start APScheduler with daily morning scrape (default 00:00 UTC = 08:00 HKT)."""
     global scheduler
-    
+
     if scheduler and scheduler.running:
         logger.warning("Scheduler is already running")
         return
-    
+
     try:
+        hour = int(os.environ.get("SCRAPE_CRON_HOUR", settings.scrape_cron_hour))
+        minute = int(os.environ.get("SCRAPE_CRON_MINUTE", settings.scrape_cron_minute))
+        tz = os.environ.get("SCRAPE_CRON_TIMEZONE", settings.scrape_cron_timezone)
+
         scheduler = AsyncIOScheduler()
-        
-        # Schedule daily scraping at 00:00 UTC
+
         scheduler.add_job(
             daily_scrape_job,
-            trigger=CronTrigger(hour=0, minute=0, timezone='UTC'),
-            id='daily_scrape',
-            name='Daily article scraping at 00:00 UTC',
-            replace_existing=True
+            trigger=CronTrigger(hour=hour, minute=minute, timezone=tz),
+            id="daily_scrape",
+            name=f"Daily article scraping at {hour:02d}:{minute:02d} {tz}",
+            replace_existing=True,
         )
-        
+
         scheduler.start()
-        logger.info("Scheduler started. Daily scraping scheduled for 00:00 UTC")
-        
+        logger.info(
+            "Scheduler started. Daily scraping at %02d:%02d %s (Air Cargo News uses scrape_aircargonews.py)",
+            hour,
+            minute,
+            tz,
+        )
+
     except Exception as e:
-        logger.error(f"Error starting scheduler: {str(e)}")
+        logger.error("Error starting scheduler: %s", e)
         raise
 
 
 def stop_scheduler():
     """Stop the scheduler."""
     global scheduler
-    
+
     if scheduler and scheduler.running:
         scheduler.shutdown()
         logger.info("Scheduler stopped")
     else:
         logger.warning("Scheduler is not running")
-

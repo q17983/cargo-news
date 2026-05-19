@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     # Scraping Configuration
     scraping_delay_seconds: int = 2
     max_retries: int = 3
+    # Daily scrape schedule (UTC). Default 00:00 UTC = 08:00 HKT (Hong Kong morning).
+    scrape_cron_hour: int = 0
+    scrape_cron_minute: int = 0
+    scrape_cron_timezone: str = "UTC"
+    aircargonews_daily_max_pages: int = 3
     
     # Railway Configuration
     railway_environment: Optional[str] = None

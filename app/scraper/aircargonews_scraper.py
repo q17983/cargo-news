@@ -280,6 +280,18 @@ class AircargonewsScraper(BaseScraper):
     
     def _extract_content(self, soup: BeautifulSoup) -> Optional[str]:
         """Extract article content - only the main article, excluding related articles."""
+        stop_markers = (
+            'tags:',
+            'author:',
+            'related posts',
+            'newsletter sign up',
+            'top posts',
+            'sponsored content',
+            'e-mail facebook',
+            'facebook &xopf;',
+            'whatsapp',
+        )
+
         # Try multiple content selectors (prioritize aircargonews.net specific ones)
         selectors = [
             '.restrictedcontent',
@@ -299,6 +311,34 @@ class AircargonewsScraper(BaseScraper):
             content_elem = soup.select_one(selector)
             if not content_elem:
                 continue
+
+            # Prefer ordered paragraph extraction so we stop cleanly before tags/author/related sections.
+            ordered_blocks = content_elem.find_all(['p', 'li', 'h3', 'div'], recursive=True)
+            main_paragraphs = []
+            started = False
+            for block in ordered_blocks:
+                text = block.get_text(' ', strip=True)
+                if not text:
+                    continue
+
+                lower_text = text.lower()
+                if any(marker in lower_text for marker in stop_markers):
+                    break
+
+                if block.name != 'p':
+                    continue
+
+                # Skip short non-content fragments and image captions.
+                if len(text) < 30 or text.startswith('Image:'):
+                    continue
+
+                started = True
+                main_paragraphs.append(text)
+
+            if started and len(main_paragraphs) >= 2:
+                content = '\n\n'.join(main_paragraphs).strip()
+                if len(content) > 200:
+                    return content
             
             # For .restrictedcontent, we need to extract only the main article
             # and stop before related articles sections

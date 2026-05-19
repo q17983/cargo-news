@@ -19,28 +19,17 @@ import os
 # Get project root first
 project_root = os.path.dirname(os.path.abspath(__file__))
 
-# Check if running in virtual environment, if not, try to use venv Python
+# Prefer local venv when available; on Railway use the container Python as-is.
 venv_python = os.path.join(project_root, 'venv', 'bin', 'python3')
-if not hasattr(sys, 'real_prefix') and not (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
-    # Not in venv, check if venv exists and use it
-    if os.path.exists(venv_python):
-        print("=" * 70)
-        print("⚠️  Not in virtual environment. Switching to venv Python...")
-        print("=" * 70)
-        print()
-        # Re-execute with venv Python
-        os.execv(venv_python, [venv_python] + sys.argv)
-    else:
-        print("=" * 70)
-        print("⚠️  WARNING: Virtual environment not found!")
-        print("=" * 70)
-        print()
-        print("Please create and activate the virtual environment first:")
-        print("  python3 -m venv venv")
-        print("  source venv/bin/activate")
-        print("  pip install -r requirements.txt")
-        print()
-        sys.exit(1)
+in_venv = hasattr(sys, 'real_prefix') or (
+    hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix
+)
+if not in_venv and os.path.exists(venv_python):
+    print("=" * 70)
+    print("⚠️  Not in virtual environment. Switching to venv Python...")
+    print("=" * 70)
+    print()
+    os.execv(venv_python, [venv_python] + sys.argv)
 
 # Add project root to Python path
 sys.path.insert(0, project_root)
